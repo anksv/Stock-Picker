@@ -136,8 +136,39 @@ thead th {
   font-weight: 600;
   position: sticky;
   top: 0;
-  cursor: pointer;
   user-select: none;
+}
+
+thead th[data-key] {
+  cursor: pointer;
+  padding-right: 22px;
+  position: relative;
+}
+
+thead th[data-key]:hover {
+  color: var(--text);
+}
+
+thead th[data-key]::after {
+  content: "\2195";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  opacity: 0.35;
+}
+
+thead th[data-key][data-sort="asc"]::after {
+  content: "\2191";
+  opacity: 1;
+  color: var(--accent);
+}
+
+thead th[data-key][data-sort="desc"]::after {
+  content: "\2193";
+  opacity: 1;
+  color: var(--accent);
 }
 
 tbody td {

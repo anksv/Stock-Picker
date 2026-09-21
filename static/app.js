@@ -16,8 +16,19 @@ let lastResults = [];
 let sortKey = "score";
 let sortDir = -1;
 
+const MONTH_ORDER = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DESCENDING_BY_DEFAULT = new Set(["price", "score", "change_pct_1d", "week52_position_pct", "rsi14"]);
+
 function signalClass(signal) {
   return signal.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z-]/g, "");
+}
+
+function sortValue(row, key) {
+  if (key === "best_buy_month") {
+    const idx = MONTH_ORDER.indexOf(row[key]);
+    return idx === -1 ? MONTH_ORDER.length : idx;
+  }
+  return row[key];
 }
 
 async function loadSectors() {
@@ -44,7 +55,7 @@ async function loadContinents() {
 
 function renderTable() {
   const rows = [...lastResults].sort((a, b) => {
-    const av = a[sortKey], bv = b[sortKey];
+    const av = sortValue(a, sortKey), bv = sortValue(b, sortKey);
     if (typeof av === "string") return sortDir * av.localeCompare(bv);
     return sortDir * ((av ?? 0) - (bv ?? 0));
   });
@@ -116,18 +127,29 @@ detailPanel.addEventListener("click", (e) => {
   if (e.target === detailPanel) detailPanel.classList.add("hidden");
 });
 
-document.querySelectorAll("th[data-key]").forEach((th) => {
+const sortableHeaders = document.querySelectorAll("th[data-key]");
+
+function updateSortIndicators() {
+  sortableHeaders.forEach((th) => {
+    th.dataset.sort = th.dataset.key === sortKey ? (sortDir === 1 ? "asc" : "desc") : "none";
+  });
+}
+
+sortableHeaders.forEach((th) => {
   th.addEventListener("click", () => {
     const key = th.dataset.key;
     if (sortKey === key) {
       sortDir *= -1;
     } else {
       sortKey = key;
-      sortDir = -1;
+      sortDir = DESCENDING_BY_DEFAULT.has(key) ? -1 : 1;
     }
+    updateSortIndicators();
     renderTable();
   });
 });
+
+updateSortIndicators();
 
 async function scan() {
   scanBtn.disabled = true;
