@@ -25,6 +25,7 @@ class StockResult:
     name: str
     sector: str
     continent: str
+    asset_type: str
     price: float
     change_pct_1d: float
     sma50: float | None
@@ -372,7 +373,7 @@ def _business_quality(history: pd.DataFrame, income_stmt: pd.DataFrame) -> dict:
     }
 
 
-def analyze_ticker(symbol: str, sector: str, continent: str) -> StockResult | None:
+def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "Stock") -> StockResult | None:
     ticker = yf.Ticker(symbol)
     try:
         history = ticker.history(period="10y", interval="1d", auto_adjust=True)
@@ -430,6 +431,7 @@ def analyze_ticker(symbol: str, sector: str, continent: str) -> StockResult | No
         name=name,
         sector=sector,
         continent=continent,
+        asset_type=asset_type,
         price=price,
         change_pct_1d=change_pct_1d,
         sma50=sma50,

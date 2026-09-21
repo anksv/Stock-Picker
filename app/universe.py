@@ -1,10 +1,14 @@
-"""Curated ticker universe, each tagged with a GICS-style sector and the
-continent of the company's primary listing/headquarters.
+"""Curated ticker universe, each tagged with a GICS-style sector, the
+continent of the company's primary listing/headquarters, and an asset type
+(Stock or ETF).
 
-This is a static seed list of well-known, liquid stocks used as the
+This is a static seed list of well-known, liquid stocks and ETFs used as the
 screening universe. Non-US names are mostly USD-denominated ADRs so prices
-stay comparable across the whole universe. Edit STOCKS to add/remove
-tickers, sectors, or continents.
+stay comparable across the whole universe. Sector-focused ETFs reuse the
+same sector names as stocks so they can be screened and compared side by
+side; broad-market/bond/commodity ETFs get their own pseudo-sectors since
+GICS sectors don't apply to them. Edit STOCKS to add/remove tickers,
+sectors, continents, or asset types.
 """
 from dataclasses import dataclass
 
@@ -14,6 +18,7 @@ class Stock:
     symbol: str
     sector: str
     continent: str
+    asset_type: str = "Stock"
 
 
 STOCKS: list[Stock] = [
@@ -160,6 +165,30 @@ STOCKS: list[Stock] = [
     # --- Africa (USD ADRs) ---
     Stock("SSL", "Energy", "Africa"),
     Stock("GFI", "Materials", "Africa"),
+
+    # --- ETFs (US-listed) ---
+    Stock("SPY", "Broad Market", "North America", "ETF"),
+    Stock("VTI", "Broad Market", "North America", "ETF"),
+    Stock("QQQ", "Broad Market", "North America", "ETF"),
+    Stock("DIA", "Broad Market", "North America", "ETF"),
+    Stock("IWM", "Broad Market", "North America", "ETF"),
+    Stock("XLK", "Technology", "North America", "ETF"),
+    Stock("XLF", "Financials", "North America", "ETF"),
+    Stock("XLV", "Healthcare", "North America", "ETF"),
+    Stock("XLE", "Energy", "North America", "ETF"),
+    Stock("XLY", "Consumer Discretionary", "North America", "ETF"),
+    Stock("XLP", "Consumer Staples", "North America", "ETF"),
+    Stock("XLI", "Industrials", "North America", "ETF"),
+    Stock("XLU", "Utilities", "North America", "ETF"),
+    Stock("XLB", "Materials", "North America", "ETF"),
+    Stock("XLRE", "Real Estate", "North America", "ETF"),
+    Stock("XLC", "Communication Services", "North America", "ETF"),
+    Stock("AGG", "Fixed Income", "North America", "ETF"),
+    Stock("BND", "Fixed Income", "North America", "ETF"),
+    Stock("TLT", "Fixed Income", "North America", "ETF"),
+    Stock("GLD", "Commodities", "North America", "ETF"),
+    Stock("SLV", "Commodities", "North America", "ETF"),
+    Stock("USO", "Commodities", "North America", "ETF"),
 ]
 
 _BY_SYMBOL: dict[str, Stock] = {s.symbol: s for s in STOCKS}
@@ -173,14 +202,20 @@ def all_continents() -> list[str]:
     return sorted({s.continent for s in STOCKS})
 
 
-def tickers_for_filters(sector: str | None, continent: str | None) -> list[str]:
+def all_asset_types() -> list[str]:
+    return sorted({s.asset_type for s in STOCKS})
+
+
+def tickers_for_filters(sector: str | None, continent: str | None, asset_type: str | None = None) -> list[str]:
     sector_l = sector.lower() if sector else "all"
     continent_l = continent.lower() if continent else "all"
+    asset_type_l = asset_type.lower() if asset_type else "all"
     return [
         s.symbol
         for s in STOCKS
         if (sector_l == "all" or s.sector.lower() == sector_l)
         and (continent_l == "all" or s.continent.lower() == continent_l)
+        and (asset_type_l == "all" or s.asset_type.lower() == asset_type_l)
     ]
 
 
@@ -192,3 +227,8 @@ def sector_for_ticker(ticker: str) -> str | None:
 def continent_for_ticker(ticker: str) -> str | None:
     stock = _BY_SYMBOL.get(ticker)
     return stock.continent if stock else None
+
+
+def asset_type_for_ticker(ticker: str) -> str | None:
+    stock = _BY_SYMBOL.get(ticker)
+    return stock.asset_type if stock else None

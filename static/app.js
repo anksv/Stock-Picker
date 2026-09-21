@@ -1,5 +1,6 @@
 const sectorSelect = document.getElementById("sector");
 const continentSelect = document.getElementById("continent");
+const assetTypeSelect = document.getElementById("assetType");
 const minPriceInput = document.getElementById("minPrice");
 const maxPriceInput = document.getElementById("maxPrice");
 const requireGrowthInput = document.getElementById("requireGrowth");
@@ -57,6 +58,17 @@ async function loadContinents() {
   }
 }
 
+async function loadAssetTypes() {
+  const res = await fetch("/api/asset-types");
+  const data = await res.json();
+  for (const t of data.asset_types) {
+    const opt = document.createElement("option");
+    opt.value = t;
+    opt.textContent = t === "ETF" ? "ETFs only" : "Stocks only";
+    assetTypeSelect.appendChild(opt);
+  }
+}
+
 function renderTable() {
   const rows = [...lastResults].sort((a, b) => {
     const av = sortValue(a, sortKey), bv = sortValue(b, sortKey);
@@ -70,6 +82,7 @@ function renderTable() {
     const changeClass = r.change_pct_1d >= 0 ? "pos" : "neg";
     tr.innerHTML = `
       <td class="symbol-cell" title="${r.name}">${r.symbol}</td>
+      <td><span class="badge ${r.asset_type === "ETF" ? "etf-type" : "stock-type"}">${r.asset_type}</span></td>
       <td>${r.sector}</td>
       <td>${r.continent}</td>
       <td>$${r.price.toFixed(2)}</td>
@@ -103,7 +116,7 @@ function showDetail(r) {
     )
     .join("");
   detailBody.innerHTML = `
-    <p style="color: var(--muted); margin-top: -8px;">${r.sector} &middot; ${r.continent}</p>
+    <p style="color: var(--muted); margin-top: -8px;">${r.asset_type} &middot; ${r.sector} &middot; ${r.continent}</p>
     <p><strong>Price:</strong> $${r.price.toFixed(2)} (${r.change_pct_1d >= 0 ? "+" : ""}${r.change_pct_1d}% today)</p>
     <p>
       <strong>Signal:</strong> <span class="badge ${signalClass(r.signal)}">${r.signal}</span>
@@ -116,6 +129,11 @@ function showDetail(r) {
     <p><strong>Historically cheapest month to buy:</strong> ${r.best_buy_month}</p>
     <p><strong>Listed since:</strong> ${r.listing_date ?? "unknown"}${r.years_listed !== null && r.years_listed !== undefined ? ` (${r.years_listed} years ago)` : ""}</p>
 
+    ${r.asset_type === "ETF" ? `
+    <p style="color: var(--muted); font-size: 12px;">
+      ETFs are funds, not companies, so revenue/earnings/margin/debt fundamentals don't apply. Quality below is based on the fund's own price track record.
+    </p>
+    ` : `
     <h3 style="margin-bottom: 6px;">Fundamentals</h3>
     <p>
       <span class="badge ${r.quarterly_growth_positive ? "buy" : "avoid"}">${r.quarterly_growth_positive ? "Growing" : "No recent growth"}</span>
@@ -126,6 +144,7 @@ function showDetail(r) {
     <p><strong>Earnings growth (YoY, last quarter):</strong> ${pct(r.earnings_growth_pct)}</p>
     <p><strong>Profit margin:</strong> ${pct(r.profit_margin_pct)}</p>
     <p><strong>Current ratio:</strong> ${r.current_ratio ?? "-"} &nbsp; <strong>Debt/Equity:</strong> ${r.debt_to_equity ?? "-"}</p>
+    `}
 
     <h3 style="margin-bottom: 6px;">Business Quality (Long-Term)</h3>
     <p>
@@ -134,9 +153,11 @@ function showDetail(r) {
     </p>
     <p><strong>Price growth:</strong> ${r.price_cagr_10y_pct !== null ? `${pct(r.price_cagr_10y_pct)}/yr over ${r.years_of_price_history} years` : `not enough history yet (${r.years_of_price_history} years)`}</p>
     <p><strong>Year-to-year steadiness:</strong> ${r.price_volatility_10y_pct !== null ? `&plusmn;${r.price_volatility_10y_pct}% swing in annual returns (lower = steadier)` : "-"}</p>
+    ${r.asset_type === "ETF" ? "" : `
     <p><strong>Profitable years:</strong> ${r.profitable_years_ratio !== null ? `${Math.round(r.profitable_years_ratio * 100)}% of reported fiscal years` : "-"}</p>
     <p><strong>Gross margin (pricing power / customer loyalty):</strong> ${pct(r.gross_margin_pct)}</p>
     <p><strong>R&amp;D spend (product experimentation):</strong> ${r.rnd_to_revenue_pct !== null ? `${pct(r.rnd_to_revenue_pct)} of revenue` : "not reported - likely not an R&amp;D-driven business"}</p>
+    `}
     <p style="color: var(--muted); font-size: 12px;">
       Based on up to 10 years of price history and the last ~4-5 fiscal years Yahoo Finance reports for free. A high score favors steady compounding, a consistent profit record, strong stable margins, and low reliance on new-product bets - i.e. a loyal customer base buying the same core products, rather than a company still experimenting to find one.
     </p>
@@ -186,6 +207,7 @@ async function scan() {
     const params = new URLSearchParams({
       sector: sectorSelect.value,
       continent: continentSelect.value,
+      asset_type: assetTypeSelect.value,
       min_price: minPriceInput.value || "0",
       max_price: maxPriceInput.value || "100000",
       require_growth: requireGrowthInput.checked,
@@ -206,4 +228,4 @@ async function scan() {
 
 scanBtn.addEventListener("click", scan);
 
-Promise.all([loadSectors(), loadContinents()]).then(scan);
+Promise.all([loadSectors(), loadContinents(), loadAssetTypes()]).then(scan);

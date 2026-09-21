@@ -27,6 +27,12 @@
       </select>
     </div>
     <div class="field">
+      <label for="assetType">Asset Type</label>
+      <select id="assetType">
+        <option value="All">Stocks &amp; ETFs</option>
+      </select>
+    </div>
+    <div class="field">
       <label for="minPrice">Min Price ($)</label>
       <input id="minPrice" type="number" min="0" value="0" />
     </div>
@@ -50,6 +56,7 @@
       <thead>
         <tr>
           <th data-key="symbol">Symbol</th>
+          <th data-key="asset_type">Type</th>
           <th data-key="sector">Sector</th>
           <th data-key="continent">Continent</th>
           <th data-key="price">Price</th>

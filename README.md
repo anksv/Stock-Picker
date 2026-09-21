@@ -11,12 +11,22 @@ carry no guarantee about future performance.
 
 ## How it works
 
-- **Universe**: a curated list of liquid, well-known stocks tagged by sector
-  and continent (see [`app/universe.py`](app/universe.py)). Non-US names are
-  mostly USD-denominated ADRs so prices stay comparable across the whole
-  universe.
-- **Screening**: filter by sector, continent, min/max price, recent growth,
-  and financial stability.
+- **Universe**: a curated list of liquid, well-known stocks and ETFs tagged
+  by sector, continent, and asset type (see
+  [`app/universe.py`](app/universe.py)). Non-US names are mostly
+  USD-denominated ADRs so prices stay comparable across the whole universe.
+  Sector-focused ETFs (e.g. `XLK` for Technology) reuse the same sector
+  names as stocks so they can be compared side by side; broad-market, bond,
+  and commodity ETFs get their own pseudo-sectors ("Broad Market", "Fixed
+  Income", "Commodities") since GICS sectors don't apply to them.
+- **Screening**: filter by sector, continent, asset type (stocks/ETFs/both),
+  min/max price, recent growth, and financial stability.
+- **ETFs**: are funds, not companies, so the revenue/earnings/margin/debt
+  fundamentals and growth/stability filters don't apply to them (an ETF
+  will never match "Growing" or "Financially stable" — that's expected, not
+  a bug). Their score and business-quality label are based purely on the
+  fund's own price track record (CAGR and steadiness), not on financial
+  statements.
 - **Scoring** (0-100, see [`app/scoring.py`](app/scoring.py)): combines
   50/200-day moving average trend, 14-day RSI, position within the 52-week
   range, the two fundamentals checks below, and long-term business quality
@@ -68,16 +78,16 @@ python -m app.main
 ```
 
 This starts a local server at `http://127.0.0.1:8000` and opens it in your
-default browser automatically. Pick a sector, continent, and price range and
-click **Scan**. Click any row for a detailed breakdown, including the
-company name and the month-by-month seasonality chart.
+default browser automatically. Pick a sector, continent, asset type, and
+price range and click **Scan**. Click any row for a detailed breakdown,
+including the company name and the month-by-month seasonality chart.
 
-The first scan for a given sector/continent combination fetches live data
-via `yfinance` and can take up to a minute or two (each stock needs a
-10-year price-history call, a fundamentals call, and an annual-financials
-call); results are cached in-memory for 15 minutes.
+The first scan for a given sector/continent/asset-type combination fetches
+live data via `yfinance` and can take up to a minute or two (each ticker
+needs a 10-year price-history call, a fundamentals call, and an
+annual-financials call); results are cached in-memory for 15 minutes.
 
 ## Customizing the universe
 
 Edit `STOCKS` in [`app/universe.py`](app/universe.py) to add, remove, or
-retag tickers by sector/continent.
+retag tickers by sector/continent/asset type.

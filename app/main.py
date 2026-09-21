@@ -13,8 +13,10 @@ from fastapi.staticfiles import StaticFiles
 
 from app.scoring import analyze_ticker
 from app.universe import (
+    all_asset_types,
     all_continents,
     all_sectors,
+    asset_type_for_ticker,
     continent_for_ticker,
     sector_for_ticker,
     tickers_for_filters,
@@ -46,22 +48,28 @@ def get_continents():
     return {"continents": all_continents()}
 
 
+@app.get("/api/asset-types")
+def get_asset_types():
+    return {"asset_types": all_asset_types()}
+
+
 @app.get("/api/screen")
 def get_screen(
     sector: str = Query(default="All"),
     continent: str = Query(default="All"),
+    asset_type: str = Query(default="All"),
     min_price: float = Query(default=0.0, ge=0),
     max_price: float = Query(default=100000.0, gt=0),
     require_growth: bool = Query(default=False, description="Only include stocks with positive YoY revenue and earnings growth last quarter"),
     require_stable: bool = Query(default=False, description="Only include stocks that look financially stable (current ratio, debt/equity, profitability)"),
 ):
-    cache_key = f"{sector.lower()}|{continent.lower()}"
+    cache_key = f"{sector.lower()}|{continent.lower()}|{asset_type.lower()}"
     now = time.time()
     cached = _CACHE.get(cache_key)
     if cached and now - cached[0] < _CACHE_TTL_SECONDS:
         results = cached[1]
     else:
-        symbols = tickers_for_filters(sector, continent)
+        symbols = tickers_for_filters(sector, continent, asset_type)
         results = []
         with ThreadPoolExecutor(max_workers=10) as pool:
             futures = {
@@ -70,6 +78,7 @@ def get_screen(
                     sym,
                     sector_for_ticker(sym) or "Unknown",
                     continent_for_ticker(sym) or "Unknown",
+                    asset_type_for_ticker(sym) or "Stock",
                 ): sym
                 for sym in symbols
             }
