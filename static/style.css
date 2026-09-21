@@ -1,0 +1,209 @@
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --border: #2a2e37;
+  --text: #e6e8eb;
+  --muted: #9aa1ac;
+  --accent: #4f8cff;
+  --green: #34c759;
+  --yellow: #f5c542;
+  --red: #ff5c5c;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+header {
+  padding: 24px 32px 8px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.subtitle {
+  color: var(--muted);
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+main {
+  padding: 16px 32px 48px;
+}
+
+.controls {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+select, input {
+  background: #0f1115;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  min-width: 120px;
+}
+
+button#scanBtn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button#scanBtn:hover { opacity: 0.9; }
+button#scanBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.status {
+  color: var(--muted);
+  font-size: 13px;
+  min-height: 18px;
+  margin-bottom: 12px;
+}
+
+.results-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+thead th {
+  text-align: left;
+  padding: 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+tbody tr:hover {
+  background: #1d212b;
+  cursor: pointer;
+}
+
+.symbol-cell {
+  font-weight: 700;
+}
+
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.strong-buy { background: rgba(52,199,89,0.18); color: var(--green); }
+.badge.buy { background: rgba(52,199,89,0.1); color: var(--green); }
+.badge.hold { background: rgba(245,197,66,0.15); color: var(--yellow); }
+.badge.avoid, .badge.overbought-wait { background: rgba(255,92,92,0.15); color: var(--red); }
+
+.pos { color: var(--green); }
+.neg { color: var(--red); }
+
+.detail-panel {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.detail-panel.hidden { display: none; }
+
+.detail-inner {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  width: min(560px, 90vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.detail-inner h2 { margin-top: 0; }
+
+.season-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.season-cell {
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: 6px;
+  background: #0f1115;
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.season-cell .m { color: var(--muted); display: block; margin-bottom: 2px; }
+
+footer.note {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 0 32px 32px;
+}

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Stock Picker</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header>
+  <h1>Stock Picker</h1>
+  <p class="subtitle">Personal research screener &mdash; not financial advice</p>
+</header>
+
+<main>
+  <section class="controls">
+    <div class="field">
+      <label for="sector">Sector</label>
+      <select id="sector">
+        <option value="All">All Sectors</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="minPrice">Min Price ($)</label>
+      <input id="minPrice" type="number" min="0" value="0" />
+    </div>
+    <div class="field">
+      <label for="maxPrice">Max Price ($)</label>
+      <input id="maxPrice" type="number" min="0" value="1000" />
+    </div>
+    <button id="scanBtn">Scan</button>
+  </section>
+
+  <section id="status" class="status"></section>
+
+  <section class="results-wrap">
+    <table id="resultsTable">
+      <thead>
+        <tr>
+          <th data-key="symbol">Symbol</th>
+          <th data-key="sector">Sector</th>
+          <th data-key="price">Price</th>
+          <th data-key="change_pct_1d">1D %</th>
+          <th data-key="rsi14">RSI(14)</th>
+          <th data-key="week52_position_pct">52w Range %</th>
+          <th data-key="score">Score</th>
+          <th data-key="signal">Signal</th>
+          <th data-key="best_buy_month">Best Month</th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+  </section>
+</main>
+
+<div id="detailPanel" class="detail-panel hidden">
+  <div class="detail-inner">
+    <button id="closeDetail" class="close-btn">&times;</button>
+    <h2 id="detailTitle"></h2>
+    <div id="detailBody"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
