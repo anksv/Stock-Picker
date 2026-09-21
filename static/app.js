@@ -1,4 +1,5 @@
 const sectorSelect = document.getElementById("sector");
+const continentSelect = document.getElementById("continent");
 const minPriceInput = document.getElementById("minPrice");
 const maxPriceInput = document.getElementById("maxPrice");
 const requireGrowthInput = document.getElementById("requireGrowth");
@@ -30,6 +31,17 @@ async function loadSectors() {
   }
 }
 
+async function loadContinents() {
+  const res = await fetch("/api/continents");
+  const data = await res.json();
+  for (const c of data.continents) {
+    const opt = document.createElement("option");
+    opt.value = c;
+    opt.textContent = c;
+    continentSelect.appendChild(opt);
+  }
+}
+
 function renderTable() {
   const rows = [...lastResults].sort((a, b) => {
     const av = a[sortKey], bv = b[sortKey];
@@ -44,6 +56,7 @@ function renderTable() {
     tr.innerHTML = `
       <td class="symbol-cell" title="${r.name}">${r.symbol}</td>
       <td>${r.sector}</td>
+      <td>${r.continent}</td>
       <td>$${r.price.toFixed(2)}</td>
       <td class="${changeClass}">${r.change_pct_1d.toFixed(2)}%</td>
       <td>${r.rsi14 ?? "-"}</td>
@@ -71,7 +84,7 @@ function showDetail(r) {
     )
     .join("");
   detailBody.innerHTML = `
-    <p style="color: var(--muted); margin-top: -8px;">${r.sector}</p>
+    <p style="color: var(--muted); margin-top: -8px;">${r.sector} &middot; ${r.continent}</p>
     <p><strong>Price:</strong> $${r.price.toFixed(2)} (${r.change_pct_1d >= 0 ? "+" : ""}${r.change_pct_1d}% today)</p>
     <p><strong>Signal:</strong> <span class="badge ${signalClass(r.signal)}">${r.signal}</span> &nbsp; <strong>Score:</strong> ${r.score}/100</p>
     <p><strong>SMA 50 / 200:</strong> ${r.sma50 ?? "-"} / ${r.sma200 ?? "-"}</p>
@@ -123,6 +136,7 @@ async function scan() {
   try {
     const params = new URLSearchParams({
       sector: sectorSelect.value,
+      continent: continentSelect.value,
       min_price: minPriceInput.value || "0",
       max_price: maxPriceInput.value || "100000",
       require_growth: requireGrowthInput.checked,
@@ -143,4 +157,4 @@ async function scan() {
 
 scanBtn.addEventListener("click", scan);
 
-loadSectors().then(scan);
+Promise.all([loadSectors(), loadContinents()]).then(scan);

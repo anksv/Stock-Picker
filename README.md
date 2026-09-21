@@ -11,10 +11,12 @@ carry no guarantee about future performance.
 
 ## How it works
 
-- **Universe**: a curated list of liquid, well-known US-listed stocks grouped
-  by sector (see [`app/universe.py`](app/universe.py)).
-- **Screening**: filter by sector, min/max price, recent growth, and
-  financial stability.
+- **Universe**: a curated list of liquid, well-known stocks tagged by sector
+  and continent (see [`app/universe.py`](app/universe.py)). Non-US names are
+  mostly USD-denominated ADRs so prices stay comparable across the whole
+  universe.
+- **Screening**: filter by sector, continent, min/max price, recent growth,
+  and financial stability.
 - **Scoring** (0-100, see [`app/scoring.py`](app/scoring.py)): combines
   50/200-day moving average trend, 14-day RSI, position within the 52-week
   range, and the two fundamentals checks below into a composite score and a
@@ -45,14 +47,16 @@ python -m app.main
 ```
 
 This starts a local server at `http://127.0.0.1:8000` and opens it in your
-default browser automatically. Pick a sector and price range and click
-**Scan**. Click any row for a detailed breakdown, including the month-by-month
-seasonality chart.
+default browser automatically. Pick a sector, continent, and price range and
+click **Scan**. Click any row for a detailed breakdown, including the
+company name and the month-by-month seasonality chart.
 
-The first scan for a sector fetches live data via `yfinance` and can take
-up to a minute; results are cached in-memory for 15 minutes.
+The first scan for a given sector/continent combination fetches live data
+via `yfinance` and can take up to a minute or two (each stock needs both a
+price-history call and a fundamentals call); results are cached in-memory
+for 15 minutes.
 
 ## Customizing the universe
 
-Edit `UNIVERSE` in [`app/universe.py`](app/universe.py) to add, remove, or
-regroup tickers.
+Edit `STOCKS` in [`app/universe.py`](app/universe.py) to add, remove, or
+retag tickers by sector/continent.

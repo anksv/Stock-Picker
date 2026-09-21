@@ -21,6 +21,7 @@ class StockResult:
     symbol: str
     name: str
     sector: str
+    continent: str
     price: float
     change_pct_1d: float
     sma50: float | None
@@ -187,7 +188,7 @@ def _fundamentals(info: dict) -> dict:
     }
 
 
-def analyze_ticker(symbol: str, sector: str) -> StockResult | None:
+def analyze_ticker(symbol: str, sector: str, continent: str) -> StockResult | None:
     ticker = yf.Ticker(symbol)
     try:
         history = ticker.history(period="5y", interval="1d", auto_adjust=True)
@@ -236,6 +237,7 @@ def analyze_ticker(symbol: str, sector: str) -> StockResult | None:
         symbol=symbol,
         name=name,
         sector=sector,
+        continent=continent,
         price=price,
         change_pct_1d=change_pct_1d,
         sma50=sma50,
@@ -250,27 +252,3 @@ def analyze_ticker(symbol: str, sector: str) -> StockResult | None:
         signal=signal,
         **fundamentals,
     )
-
-
-def screen(
-    symbols_with_sector: list[tuple[str, str]],
-    min_price: float,
-    max_price: float,
-    require_growth: bool = False,
-    require_stable: bool = False,
-) -> list[dict]:
-    results: list[dict] = []
-    for symbol, sector in symbols_with_sector:
-        result = analyze_ticker(symbol, sector)
-        if result is None:
-            continue
-        if result.price < min_price or result.price > max_price:
-            continue
-        if require_growth and not result.quarterly_growth_positive:
-            continue
-        if require_stable and not result.financially_stable:
-            continue
-        results.append(result.to_dict())
-
-    results.sort(key=lambda r: r["score"], reverse=True)
-    return results

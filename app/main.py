@@ -12,7 +12,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.scoring import analyze_ticker
-from app.universe import all_sectors, sector_for_ticker, tickers_for_sector
+from app.universe import (
+    all_continents,
+    all_sectors,
+    continent_for_ticker,
+    sector_for_ticker,
+    tickers_for_filters,
+)
 
 APP_DIR = Path(__file__).resolve().parent
 STATIC_DIR = APP_DIR.parent / "static"
@@ -35,25 +41,36 @@ def get_sectors():
     return {"sectors": all_sectors()}
 
 
+@app.get("/api/continents")
+def get_continents():
+    return {"continents": all_continents()}
+
+
 @app.get("/api/screen")
 def get_screen(
     sector: str = Query(default="All"),
+    continent: str = Query(default="All"),
     min_price: float = Query(default=0.0, ge=0),
     max_price: float = Query(default=100000.0, gt=0),
     require_growth: bool = Query(default=False, description="Only include stocks with positive YoY revenue and earnings growth last quarter"),
     require_stable: bool = Query(default=False, description="Only include stocks that look financially stable (current ratio, debt/equity, profitability)"),
 ):
-    cache_key = sector.lower()
+    cache_key = f"{sector.lower()}|{continent.lower()}"
     now = time.time()
     cached = _CACHE.get(cache_key)
     if cached and now - cached[0] < _CACHE_TTL_SECONDS:
         results = cached[1]
     else:
-        symbols = tickers_for_sector(sector)
+        symbols = tickers_for_filters(sector, continent)
         results = []
         with ThreadPoolExecutor(max_workers=10) as pool:
             futures = {
-                pool.submit(analyze_ticker, sym, sector_for_ticker(sym) or "Unknown"): sym
+                pool.submit(
+                    analyze_ticker,
+                    sym,
+                    sector_for_ticker(sym) or "Unknown",
+                    continent_for_ticker(sym) or "Unknown",
+                ): sym
                 for sym in symbols
             }
             for future in as_completed(futures):
