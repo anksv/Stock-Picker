@@ -1,6 +1,8 @@
 const sectorSelect = document.getElementById("sector");
 const minPriceInput = document.getElementById("minPrice");
 const maxPriceInput = document.getElementById("maxPrice");
+const requireGrowthInput = document.getElementById("requireGrowth");
+const requireStableInput = document.getElementById("requireStable");
 const scanBtn = document.getElementById("scanBtn");
 const statusEl = document.getElementById("status");
 const resultsBody = document.getElementById("resultsBody");
@@ -40,7 +42,7 @@ function renderTable() {
     const tr = document.createElement("tr");
     const changeClass = r.change_pct_1d >= 0 ? "pos" : "neg";
     tr.innerHTML = `
-      <td class="symbol-cell">${r.symbol}</td>
+      <td class="symbol-cell" title="${r.name}">${r.symbol}</td>
       <td>${r.sector}</td>
       <td>$${r.price.toFixed(2)}</td>
       <td class="${changeClass}">${r.change_pct_1d.toFixed(2)}%</td>
@@ -55,8 +57,12 @@ function renderTable() {
   }
 }
 
+function pct(v) {
+  return v === null || v === undefined ? "-" : `${v > 0 ? "+" : ""}${v}%`;
+}
+
 function showDetail(r) {
-  detailTitle.textContent = `${r.symbol} · ${r.sector}`;
+  detailTitle.textContent = r.name && r.name !== r.symbol ? `${r.name} (${r.symbol})` : r.symbol;
   const seasonCells = r.seasonality
     .map(
       (s) => `<div class="season-cell"><span class="m">${s.month}</span>${
@@ -65,12 +71,25 @@ function showDetail(r) {
     )
     .join("");
   detailBody.innerHTML = `
+    <p style="color: var(--muted); margin-top: -8px;">${r.sector}</p>
     <p><strong>Price:</strong> $${r.price.toFixed(2)} (${r.change_pct_1d >= 0 ? "+" : ""}${r.change_pct_1d}% today)</p>
     <p><strong>Signal:</strong> <span class="badge ${signalClass(r.signal)}">${r.signal}</span> &nbsp; <strong>Score:</strong> ${r.score}/100</p>
     <p><strong>SMA 50 / 200:</strong> ${r.sma50 ?? "-"} / ${r.sma200 ?? "-"}</p>
     <p><strong>RSI (14d):</strong> ${r.rsi14 ?? "-"}</p>
     <p><strong>52-week range:</strong> $${r.week52_low} &ndash; $${r.week52_high} (currently at ${r.week52_position_pct}% of range)</p>
     <p><strong>Historically cheapest month to buy:</strong> ${r.best_buy_month}</p>
+
+    <h3 style="margin-bottom: 6px;">Fundamentals</h3>
+    <p>
+      <span class="badge ${r.quarterly_growth_positive ? "buy" : "avoid"}">${r.quarterly_growth_positive ? "Growing" : "No recent growth"}</span>
+      &nbsp;
+      <span class="badge ${r.financially_stable ? "buy" : "avoid"}">${r.financially_stable ? "Financially stable" : "Elevated risk"}</span>
+    </p>
+    <p><strong>Revenue growth (YoY, last quarter):</strong> ${pct(r.revenue_growth_pct)}</p>
+    <p><strong>Earnings growth (YoY, last quarter):</strong> ${pct(r.earnings_growth_pct)}</p>
+    <p><strong>Profit margin:</strong> ${pct(r.profit_margin_pct)}</p>
+    <p><strong>Current ratio:</strong> ${r.current_ratio ?? "-"} &nbsp; <strong>Debt/Equity:</strong> ${r.debt_to_equity ?? "-"}</p>
+
     <p style="color: var(--muted); font-size: 12px; margin-top: 8px;">
       Seasonality below shows each month's average closing price relative to that year's mean, averaged over the last ~5 years. Negative = historically cheaper.
     </p>
@@ -106,6 +125,8 @@ async function scan() {
       sector: sectorSelect.value,
       min_price: minPriceInput.value || "0",
       max_price: maxPriceInput.value || "100000",
+      require_growth: requireGrowthInput.checked,
+      require_stable: requireStableInput.checked,
     });
     const res = await fetch(`/api/screen?${params}`);
     if (!res.ok) throw new Error(`Server error: ${res.status}`);

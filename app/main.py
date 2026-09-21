@@ -40,6 +40,8 @@ def get_screen(
     sector: str = Query(default="All"),
     min_price: float = Query(default=0.0, ge=0),
     max_price: float = Query(default=100000.0, gt=0),
+    require_growth: bool = Query(default=False, description="Only include stocks with positive YoY revenue and earnings growth last quarter"),
+    require_stable: bool = Query(default=False, description="Only include stocks that look financially stable (current ratio, debt/equity, profitability)"),
 ):
     cache_key = sector.lower()
     now = time.time()
@@ -62,6 +64,10 @@ def get_screen(
         _CACHE[cache_key] = (now, results)
 
     filtered = [r for r in results if min_price <= r["price"] <= max_price]
+    if require_growth:
+        filtered = [r for r in filtered if r["quarterly_growth_positive"]]
+    if require_stable:
+        filtered = [r for r in filtered if r["financially_stable"]]
     filtered.sort(key=lambda r: r["score"], reverse=True)
     return {"count": len(filtered), "results": filtered}
 

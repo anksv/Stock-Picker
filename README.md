@@ -13,14 +13,22 @@ carry no guarantee about future performance.
 
 - **Universe**: a curated list of liquid, well-known US-listed stocks grouped
   by sector (see [`app/universe.py`](app/universe.py)).
-- **Screening**: filter by sector and min/max price.
+- **Screening**: filter by sector, min/max price, recent growth, and
+  financial stability.
 - **Scoring** (0-100, see [`app/scoring.py`](app/scoring.py)): combines
-  50/200-day moving average trend, 14-day RSI, and position within the
-  52-week range into a composite score and a signal (Strong Buy / Buy /
-  Hold / Avoid / Overbought).
+  50/200-day moving average trend, 14-day RSI, position within the 52-week
+  range, and the two fundamentals checks below into a composite score and a
+  signal (Strong Buy / Buy / Hold / Avoid / Overbought).
 - **Seasonality**: for each stock, average daily closes (normalized per
   year) are grouped by calendar month over the last ~5 years to highlight
   the month that has historically been cheapest relative to the year.
+- **Growth filter**: "Growing" means both revenue and earnings grew
+  year-over-year in the most recently reported quarter (`revenueGrowth` and
+  `earningsQuarterlyGrowth` from Yahoo Finance).
+- **Stability filter**: "Financially stable" is a rough solvency proxy, not
+  a real bankruptcy model — it requires a current ratio &ge; 1 (can cover
+  short-term liabilities), debt/equity below 1.5x, and a positive profit
+  margin.
 
 ## Setup
 

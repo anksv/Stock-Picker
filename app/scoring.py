@@ -19,6 +19,7 @@ MONTH_NAMES = list(calendar.month_abbr)  # index 1-12
 @dataclass
 class StockResult:
     symbol: str
+    name: str
     sector: str
     price: float
     change_pct_1d: float
@@ -30,6 +31,13 @@ class StockResult:
     week52_position_pct: float
     best_buy_month: str
     seasonality: list
+    revenue_growth_pct: float | None
+    earnings_growth_pct: float | None
+    profit_margin_pct: float | None
+    current_ratio: float | None
+    debt_to_equity: float | None
+    quarterly_growth_positive: bool
+    financially_stable: bool
     score: int
     signal: str
 
@@ -75,7 +83,15 @@ def _seasonality(history: pd.DataFrame) -> tuple[str, list]:
     return MONTH_NAMES[best_month_num], seasonality
 
 
-def _score_and_signal(price: float, sma50, sma200, rsi, pos_pct: float) -> tuple[int, str]:
+def _score_and_signal(
+    price: float,
+    sma50,
+    sma200,
+    rsi,
+    pos_pct: float,
+    quarterly_growth_positive: bool,
+    financially_stable: bool,
+) -> tuple[int, str]:
     score = 50
 
     if sma50 is not None and sma200 is not None:
@@ -105,6 +121,11 @@ def _score_and_signal(price: float, sma50, sma200, rsi, pos_pct: float) -> tuple
     elif pos_pct > 90:
         score -= 10
 
+    if quarterly_growth_positive:
+        score += 5
+    if financially_stable:
+        score += 5
+
     score = int(max(0, min(100, score)))
 
     if rsi is not None and rsi > 70:
@@ -121,14 +142,68 @@ def _score_and_signal(price: float, sma50, sma200, rsi, pos_pct: float) -> tuple
     return score, signal
 
 
+def _fundamentals(info: dict) -> dict:
+    """Pull revenue/earnings growth and balance-sheet health out of
+    yfinance's `.info` dict. Fields are best-effort and frequently missing,
+    so every value is treated as optional.
+    """
+    revenue_growth = info.get("revenueGrowth")
+    earnings_growth = info.get("earningsQuarterlyGrowth")
+    profit_margin = info.get("profitMargins")
+    current_ratio = info.get("currentRatio")
+    debt_to_equity = info.get("debtToEquity")
+
+    revenue_growth_pct = round(revenue_growth * 100, 1) if revenue_growth is not None else None
+    earnings_growth_pct = round(earnings_growth * 100, 1) if earnings_growth is not None else None
+    profit_margin_pct = round(profit_margin * 100, 1) if profit_margin is not None else None
+    current_ratio = round(float(current_ratio), 2) if current_ratio is not None else None
+    debt_to_equity = round(float(debt_to_equity), 1) if debt_to_equity is not None else None
+
+    # "Last quarter's results showed positive signs they'll keep growing":
+    # both revenue and earnings grew year-over-year in the most recent quarter.
+    quarterly_growth_positive = bool(
+        revenue_growth_pct is not None and revenue_growth_pct > 0
+        and earnings_growth_pct is not None and earnings_growth_pct > 0
+    )
+
+    # "Enough revenue, won't go bankrupt": can cover short-term liabilities
+    # (current ratio >= 1), isn't over-leveraged (debt/equity < 1.5x), and is
+    # actually profitable. This is a rough solvency proxy, not a real
+    # bankruptcy model.
+    financially_stable = bool(
+        current_ratio is not None and current_ratio >= 1
+        and debt_to_equity is not None and debt_to_equity < 150
+        and profit_margin_pct is not None and profit_margin_pct > 0
+    )
+
+    return {
+        "revenue_growth_pct": revenue_growth_pct,
+        "earnings_growth_pct": earnings_growth_pct,
+        "profit_margin_pct": profit_margin_pct,
+        "current_ratio": current_ratio,
+        "debt_to_equity": debt_to_equity,
+        "quarterly_growth_positive": quarterly_growth_positive,
+        "financially_stable": financially_stable,
+    }
+
+
 def analyze_ticker(symbol: str, sector: str) -> StockResult | None:
+    ticker = yf.Ticker(symbol)
     try:
-        history = yf.Ticker(symbol).history(period="5y", interval="1d", auto_adjust=True)
+        history = ticker.history(period="5y", interval="1d", auto_adjust=True)
     except Exception:
         return None
 
     if history is None or history.empty or len(history) < 60:
         return None
+
+    try:
+        info = ticker.info or {}
+    except Exception:
+        info = {}
+
+    name = info.get("longName") or info.get("shortName") or symbol
+    fundamentals = _fundamentals(info)
 
     closes = history["Close"].dropna()
     price = round(float(closes.iloc[-1]), 2)
@@ -147,10 +222,19 @@ def analyze_ticker(symbol: str, sector: str) -> StockResult | None:
 
     best_month, seasonality = _seasonality(history)
 
-    score, signal = _score_and_signal(price, sma50, sma200, rsi14, week52_position_pct)
+    score, signal = _score_and_signal(
+        price,
+        sma50,
+        sma200,
+        rsi14,
+        week52_position_pct,
+        fundamentals["quarterly_growth_positive"],
+        fundamentals["financially_stable"],
+    )
 
     return StockResult(
         symbol=symbol,
+        name=name,
         sector=sector,
         price=price,
         change_pct_1d=change_pct_1d,
@@ -164,16 +248,27 @@ def analyze_ticker(symbol: str, sector: str) -> StockResult | None:
         seasonality=seasonality,
         score=score,
         signal=signal,
+        **fundamentals,
     )
 
 
-def screen(symbols_with_sector: list[tuple[str, str]], min_price: float, max_price: float) -> list[dict]:
+def screen(
+    symbols_with_sector: list[tuple[str, str]],
+    min_price: float,
+    max_price: float,
+    require_growth: bool = False,
+    require_stable: bool = False,
+) -> list[dict]:
     results: list[dict] = []
     for symbol, sector in symbols_with_sector:
         result = analyze_ticker(symbol, sector)
         if result is None:
             continue
         if result.price < min_price or result.price > max_price:
+            continue
+        if require_growth and not result.quarterly_growth_positive:
+            continue
+        if require_stable and not result.financially_stable:
             continue
         results.append(result.to_dict())
 
