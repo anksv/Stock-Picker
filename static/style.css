@@ -206,6 +206,12 @@ tbody tr:hover {
   letter-spacing: 0.03em;
 }
 
+.badge.quality-durable-compounder { background: rgba(52,199,89,0.18); color: var(--green); }
+.badge.quality-steady { background: rgba(79,140,255,0.18); color: var(--accent); }
+.badge.quality-mixed { background: rgba(245,197,66,0.15); color: var(--yellow); }
+.badge.quality-volatile-experimental { background: rgba(255,92,92,0.15); color: var(--red); }
+.badge.quality-insufficient-history { background: rgba(154,161,172,0.15); color: var(--muted); }
+
 .pos { color: var(--green); }
 .neg { color: var(--red); }
 

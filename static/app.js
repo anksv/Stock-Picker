@@ -17,10 +17,14 @@ let sortKey = "score";
 let sortDir = -1;
 
 const MONTH_ORDER = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const DESCENDING_BY_DEFAULT = new Set(["price", "score", "change_pct_1d", "week52_position_pct", "rsi14"]);
+const DESCENDING_BY_DEFAULT = new Set(["price", "score", "change_pct_1d", "week52_position_pct", "rsi14", "business_quality_score"]);
 
 function signalClass(signal) {
   return signal.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z-]/g, "");
+}
+
+function qualityClass(label) {
+  return "quality-" + label.toLowerCase().replace(/\s*\/\s*/g, "-").replace(/\s+/g, "-");
 }
 
 function sortValue(row, key) {
@@ -77,6 +81,7 @@ function renderTable() {
         <span class="badge ${signalClass(r.signal)}">${r.signal}</span>
         ${r.is_new_listing ? '<span class="badge new" title="Listed on the market less than 10 years ago">New</span>' : ""}
       </td>
+      <td><span class="badge ${qualityClass(r.business_quality_label)}" title="${r.business_quality_label} (${r.business_quality_score}/100)">${r.business_quality_label}</span></td>
       <td>${r.best_buy_month}</td>
     `;
     tr.addEventListener("click", () => showDetail(r));
@@ -122,8 +127,22 @@ function showDetail(r) {
     <p><strong>Profit margin:</strong> ${pct(r.profit_margin_pct)}</p>
     <p><strong>Current ratio:</strong> ${r.current_ratio ?? "-"} &nbsp; <strong>Debt/Equity:</strong> ${r.debt_to_equity ?? "-"}</p>
 
+    <h3 style="margin-bottom: 6px;">Business Quality (Long-Term)</h3>
+    <p>
+      <span class="badge ${qualityClass(r.business_quality_label)}">${r.business_quality_label}</span>
+      &nbsp; <strong>Quality score:</strong> ${r.business_quality_score}/100
+    </p>
+    <p><strong>Price growth:</strong> ${r.price_cagr_10y_pct !== null ? `${pct(r.price_cagr_10y_pct)}/yr over ${r.years_of_price_history} years` : `not enough history yet (${r.years_of_price_history} years)`}</p>
+    <p><strong>Year-to-year steadiness:</strong> ${r.price_volatility_10y_pct !== null ? `&plusmn;${r.price_volatility_10y_pct}% swing in annual returns (lower = steadier)` : "-"}</p>
+    <p><strong>Profitable years:</strong> ${r.profitable_years_ratio !== null ? `${Math.round(r.profitable_years_ratio * 100)}% of reported fiscal years` : "-"}</p>
+    <p><strong>Gross margin (pricing power / customer loyalty):</strong> ${pct(r.gross_margin_pct)}</p>
+    <p><strong>R&amp;D spend (product experimentation):</strong> ${r.rnd_to_revenue_pct !== null ? `${pct(r.rnd_to_revenue_pct)} of revenue` : "not reported - likely not an R&amp;D-driven business"}</p>
+    <p style="color: var(--muted); font-size: 12px;">
+      Based on up to 10 years of price history and the last ~4-5 fiscal years Yahoo Finance reports for free. A high score favors steady compounding, a consistent profit record, strong stable margins, and low reliance on new-product bets - i.e. a loyal customer base buying the same core products, rather than a company still experimenting to find one.
+    </p>
+
     <p style="color: var(--muted); font-size: 12px; margin-top: 8px;">
-      Seasonality below shows each month's average closing price relative to that year's mean, averaged over the last ~5 years. Negative = historically cheaper.
+      Seasonality below shows each month's average closing price relative to that year's mean, averaged over the last ~10 years. Negative = historically cheaper.
     </p>
     <div class="season-grid">${seasonCells}</div>
   `;

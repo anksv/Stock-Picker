@@ -19,10 +19,27 @@ carry no guarantee about future performance.
   and financial stability.
 - **Scoring** (0-100, see [`app/scoring.py`](app/scoring.py)): combines
   50/200-day moving average trend, 14-day RSI, position within the 52-week
-  range, and the two fundamentals checks below into a composite score and a
-  signal (Strong Buy / Buy / Hold / Avoid / Overbought).
+  range, the two fundamentals checks below, and long-term business quality
+  (next bullet) into a composite score and a signal (Strong Buy / Buy /
+  Hold / Avoid / Overbought). Business quality is weighted as heavily as
+  the short-term technicals (up to &plusmn;20 of the 100 points), so a
+  steady long-term compounder with weak near-term momentum can still score
+  well, and a volatile, loss-making business can't overcome a poor
+  long-term record just by looking technically "oversold".
+- **Business quality** ("Business Quality" column / detail panel section):
+  answers "has this been a durable, loyal-customer business, or one still
+  experimenting?" using what Yahoo Finance exposes for free — up to 10
+  years of price history for long-run compounding (CAGR) and year-to-year
+  steadiness, plus the last ~4-5 fiscal years of financials for: whether
+  every year was profitable, gross margin (a proxy for pricing power that
+  only comes from customers who keep buying), and R&amp;D spend as a share
+  of revenue (low or unreported ~= relying on an established product line
+  rather than constant new-product bets, since many non-R&amp;D-driven
+  businesses like consumer staples don't report an R&amp;D line at all). A
+  young stock without enough history is labeled "Insufficient History" and
+  scored neutrally rather than penalized.
 - **Seasonality**: for each stock, average daily closes (normalized per
-  year) are grouped by calendar month over the last ~5 years to highlight
+  year) are grouped by calendar month over the last ~10 years to highlight
   the month that has historically been cheapest relative to the year.
 - **Growth filter**: "Growing" means both revenue and earnings grew
   year-over-year in the most recently reported quarter (`revenueGrowth` and
@@ -56,9 +73,9 @@ click **Scan**. Click any row for a detailed breakdown, including the
 company name and the month-by-month seasonality chart.
 
 The first scan for a given sector/continent combination fetches live data
-via `yfinance` and can take up to a minute or two (each stock needs both a
-price-history call and a fundamentals call); results are cached in-memory
-for 15 minutes.
+via `yfinance` and can take up to a minute or two (each stock needs a
+10-year price-history call, a fundamentals call, and an annual-financials
+call); results are cached in-memory for 15 minutes.
 
 ## Customizing the universe
 
