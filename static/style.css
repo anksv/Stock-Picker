@@ -198,6 +198,14 @@ tbody tr:hover {
 .badge.hold { background: rgba(245,197,66,0.15); color: var(--yellow); }
 .badge.avoid, .badge.overbought-wait { background: rgba(255,92,92,0.15); color: var(--red); }
 
+.badge.new {
+  background: var(--accent);
+  color: #fff;
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .pos { color: var(--green); }
 .neg { color: var(--red); }
 

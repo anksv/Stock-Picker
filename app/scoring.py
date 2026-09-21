@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import calendar
 from dataclasses import dataclass, asdict
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
 import yfinance as yf
+
+NEW_LISTING_YEARS_THRESHOLD = 10
 
 MONTH_NAMES = list(calendar.month_abbr)  # index 1-12
 
@@ -39,6 +42,9 @@ class StockResult:
     debt_to_equity: float | None
     quarterly_growth_positive: bool
     financially_stable: bool
+    listing_date: str | None
+    years_listed: float | None
+    is_new_listing: bool
     score: int
     signal: str
 
@@ -188,6 +194,26 @@ def _fundamentals(info: dict) -> dict:
     }
 
 
+def _listing_age(info: dict) -> dict:
+    """How long the stock has traded publicly, from yfinance's
+    `firstTradeDateMilliseconds`. This is the exchange listing date (IPO),
+    not necessarily when the company was founded, so `is_new_listing` means
+    "newly public" rather than "newly founded".
+    """
+    first_trade_ms = info.get("firstTradeDateMilliseconds")
+    if not first_trade_ms:
+        return {"listing_date": None, "years_listed": None, "is_new_listing": False}
+
+    listed_at = datetime.fromtimestamp(first_trade_ms / 1000, tz=timezone.utc)
+    years_listed = round((datetime.now(timezone.utc) - listed_at).days / 365.25, 1)
+
+    return {
+        "listing_date": listed_at.date().isoformat(),
+        "years_listed": years_listed,
+        "is_new_listing": years_listed < NEW_LISTING_YEARS_THRESHOLD,
+    }
+
+
 def analyze_ticker(symbol: str, sector: str, continent: str) -> StockResult | None:
     ticker = yf.Ticker(symbol)
     try:
@@ -205,6 +231,7 @@ def analyze_ticker(symbol: str, sector: str, continent: str) -> StockResult | No
 
     name = info.get("longName") or info.get("shortName") or symbol
     fundamentals = _fundamentals(info)
+    listing_age = _listing_age(info)
 
     closes = history["Close"].dropna()
     price = round(float(closes.iloc[-1]), 2)
@@ -251,4 +278,5 @@ def analyze_ticker(symbol: str, sector: str, continent: str) -> StockResult | No
         score=score,
         signal=signal,
         **fundamentals,
+        **listing_age,
     )

@@ -73,7 +73,10 @@ function renderTable() {
       <td>${r.rsi14 ?? "-"}</td>
       <td>${r.week52_position_pct}%</td>
       <td>${r.score}</td>
-      <td><span class="badge ${signalClass(r.signal)}">${r.signal}</span></td>
+      <td>
+        <span class="badge ${signalClass(r.signal)}">${r.signal}</span>
+        ${r.is_new_listing ? '<span class="badge new" title="Listed on the market less than 10 years ago">New</span>' : ""}
+      </td>
       <td>${r.best_buy_month}</td>
     `;
     tr.addEventListener("click", () => showDetail(r));
@@ -97,11 +100,16 @@ function showDetail(r) {
   detailBody.innerHTML = `
     <p style="color: var(--muted); margin-top: -8px;">${r.sector} &middot; ${r.continent}</p>
     <p><strong>Price:</strong> $${r.price.toFixed(2)} (${r.change_pct_1d >= 0 ? "+" : ""}${r.change_pct_1d}% today)</p>
-    <p><strong>Signal:</strong> <span class="badge ${signalClass(r.signal)}">${r.signal}</span> &nbsp; <strong>Score:</strong> ${r.score}/100</p>
+    <p>
+      <strong>Signal:</strong> <span class="badge ${signalClass(r.signal)}">${r.signal}</span>
+      ${r.is_new_listing ? '<span class="badge new">New</span>' : ""}
+      &nbsp; <strong>Score:</strong> ${r.score}/100
+    </p>
     <p><strong>SMA 50 / 200:</strong> ${r.sma50 ?? "-"} / ${r.sma200 ?? "-"}</p>
     <p><strong>RSI (14d):</strong> ${r.rsi14 ?? "-"}</p>
     <p><strong>52-week range:</strong> $${r.week52_low} &ndash; $${r.week52_high} (currently at ${r.week52_position_pct}% of range)</p>
     <p><strong>Historically cheapest month to buy:</strong> ${r.best_buy_month}</p>
+    <p><strong>Listed since:</strong> ${r.listing_date ?? "unknown"}${r.years_listed !== null && r.years_listed !== undefined ? ` (${r.years_listed} years ago)` : ""}</p>
 
     <h3 style="margin-bottom: 6px;">Fundamentals</h3>
     <p>

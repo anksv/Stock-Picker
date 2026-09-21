@@ -31,6 +31,10 @@ carry no guarantee about future performance.
   a real bankruptcy model — it requires a current ratio &ge; 1 (can cover
   short-term liabilities), debt/equity below 1.5x, and a positive profit
   margin.
+- **New listing highlight**: a blue "New" badge appears next to the signal
+  when the stock has traded on the market for less than 10 years (based on
+  Yahoo Finance's first-trade date). This reflects listing age, not
+  necessarily how old the company itself is.
 
 ## Setup
 
