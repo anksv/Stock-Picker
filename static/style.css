@@ -35,6 +35,39 @@ header h1 {
   font-size: 13px;
 }
 
+.header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.top-nav {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.top-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+
+.top-nav a:hover {
+  color: var(--text);
+  background: var(--panel);
+}
+
+.top-nav a.active {
+  color: var(--text);
+  background: var(--panel);
+  font-weight: 600;
+}
+
 main {
   padding: 16px 32px 48px;
 }
@@ -94,7 +127,7 @@ select, input {
   min-width: 120px;
 }
 
-button#scanBtn {
+button#scanBtn, button#buyBtn {
   background: var(--accent);
   color: white;
   border: none;
@@ -105,8 +138,112 @@ button#scanBtn {
   cursor: pointer;
 }
 
-button#scanBtn:hover { opacity: 0.9; }
-button#scanBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+button#scanBtn:hover, button#buyBtn:hover { opacity: 0.9; }
+button#scanBtn:disabled, button#buyBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+button#addTickerBtn {
+  background: none;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+button#addTickerBtn:hover { background: var(--panel); }
+
+.ticker-rows {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 4px;
+}
+
+.ticker-rows th {
+  text-align: left;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 8px;
+}
+
+.ticker-rows td {
+  padding: 4px 8px;
+}
+
+.ticker-rows input {
+  min-width: auto;
+  width: 140px;
+}
+
+.remove-row-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.remove-row-btn:hover { color: var(--red); }
+
+.portfolio-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.portfolio-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.portfolio-card-header button {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: 6px;
+}
+
+.portfolio-card-header button:hover { background: #0f1115; }
+.portfolio-card-header .delete-btn:hover { color: var(--red); border-color: var(--red); }
+
+.portfolio-card-body {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.portfolio-card-body.hidden { display: none; }
+
+.portfolio-positions {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.portfolio-positions th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.portfolio-positions td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
 
 .status {
   color: var(--muted);

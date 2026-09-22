@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Stock Picker &middot; Portfolio</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header>
+  <div class="header-row">
+    <div>
+      <h1>Portfolio</h1>
+      <p class="subtitle">Paper-trade tracker &mdash; simulated purchases only, not a real brokerage</p>
+    </div>
+    <nav class="top-nav">
+      <a href="index.html">Screener</a>
+      <a href="portfolio.html" class="active">Portfolio</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="controls portfolio-form">
+    <div class="field">
+      <label for="pfName">Portfolio name</label>
+      <input id="pfName" type="text" placeholder="e.g. my-portfolio" />
+    </div>
+    <div class="field">
+      <label for="pfAmount">Amount to invest ($)</label>
+      <input id="pfAmount" type="number" min="0" value="1000" />
+    </div>
+    <div class="field">
+      <button id="addTickerBtn" type="button">+ Add ticker</button>
+    </div>
+  </section>
+
+  <section class="controls">
+    <table id="tickerRows" class="ticker-rows">
+      <thead>
+        <tr><th>Symbol</th><th>Weight</th><th></th></tr>
+      </thead>
+      <tbody id="tickerRowsBody"></tbody>
+    </table>
+    <p style="color: var(--muted); font-size: 12px; margin: 8px 0 12px;">
+      Weights are relative, not required to sum to 100 - e.g. 2 and 1 means the first ticker gets 2/3 of the amount. Amount is treated as a plain USD-equivalent number (no currency conversion) since every price here is USD-denominated.
+    </p>
+    <button id="buyBtn">Buy Portfolio</button>
+  </section>
+
+  <section id="pfStatus" class="status"></section>
+
+  <section id="portfolioList"></section>
+</main>
+
+<script src="portfolio.js"></script>
+</body>
+</html>

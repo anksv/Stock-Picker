@@ -9,3 +9,5 @@ venv/
 data_cache/
 .idea/
 .vscode/
+portfolios/
+portfolio_config.json

@@ -1,0 +1,7 @@
+{
+  "tickers": [
+    {"symbol": "AAPL", "weight": 40},
+    {"symbol": "MSFT", "weight": 30},
+    {"symbol": "SPY", "weight": 30}
+  ]
+}

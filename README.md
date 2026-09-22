@@ -2,8 +2,11 @@
 
 A personal research tool that screens a curated universe of stocks by
 industry sector and price range, scores them using simple technical
-indicators, and suggests a historically favorable month to buy. Running it
-starts a local web server and opens the results in your browser.
+indicators, and suggests a historically favorable month to buy. It also
+includes a paper-trade portfolio tracker: simulate investing a fixed amount
+across a basket of tickers, then check back later for real profit/loss.
+Running it starts a local web server and opens the results in your
+browser.
 
 **This is not financial advice.** Scores and "best month" suggestions are
 derived from basic technical/seasonal heuristics over historical data and
@@ -167,3 +170,51 @@ itself is cached separately per symbol for 20 minutes.
 
 Edit `STOCKS` in [`app/universe.py`](app/universe.py) to add, remove, or
 retag tickers by sector/continent/asset type.
+
+## Portfolio tracker (paper trading)
+
+A separate feature (see [`app/portfolio.py`](app/portfolio.py)) for
+"if I'd invested $X across these tickers, would I be up or down by now?" -
+no money moves and no broker is involved. It simulates a purchase by
+recording today's price and the resulting fractional share count per
+ticker, then compares that to a later real price when you check back.
+
+**Web UI**: the **Portfolio** tab (`portfolio.html`) in the running app.
+Name the portfolio, set an amount, add tickers with relative weights (they
+don't need to sum to 100 - e.g. weights of 2 and 1 mean the first ticker
+gets 2/3 of the amount), click **Buy Portfolio**. Click **Check P/L** any
+time afterward to see current profit/loss per ticker and overall.
+
+**CLI** (same underlying data, useful for scripting or a cron job):
+
+```bash
+# Buy: split $1000 across tickers listed in a config file
+python -m app.portfolio buy --name my-portfolio --amount 1000 \
+  --config portfolio_config.json
+
+# ...or inline, without a config file (SYMBOL:WEIGHT,...)
+python -m app.portfolio buy --name my-portfolio --amount 1000 \
+  --tickers AAPL:40,MSFT:30,SPY:30
+
+# Check profit/loss any time later, e.g. after 10 days
+python -m app.portfolio status --name my-portfolio
+
+# List all saved portfolios
+python -m app.portfolio list
+```
+
+Copy [`portfolio_config.example.json`](portfolio_config.example.json) to
+`portfolio_config.json` (gitignored, since it's your own input) and edit
+the ticker/weight list. Weights are relative, not percentages that must sum
+to 100.
+
+**On amounts and currency**: whatever number you pass as `--amount` (or
+enter in the web form) is treated as a plain USD-equivalent number, not
+converted from EUR or any other currency - every price in this app is
+USD-denominated. If you're thinking in EUR, convert to USD yourself first
+if you want the simulation to reflect a real amount; this was a deliberate
+simplification (no live FX conversion), not an oversight.
+
+Portfolio records are saved as JSON files under `portfolios/` (gitignored -
+these are your personal paper-trade records, not project data) and persist
+between runs of the app.

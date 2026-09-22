@@ -8,10 +8,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
+from app.portfolio import buy_portfolio, check_portfolio, delete_portfolio, list_portfolios
 from app.scoring import analyze_ticker
 from app.universe import (
     all_asset_types,
@@ -124,6 +126,49 @@ def get_screen(
         filtered = [r for r in filtered if r["financially_stable"]]
     filtered.sort(key=lambda r: r["score"], reverse=True)
     return {"count": len(filtered), "results": filtered}
+
+
+class TickerWeight(BaseModel):
+    symbol: str
+    weight: float
+
+
+class PortfolioBuyRequest(BaseModel):
+    name: str
+    amount: float
+    tickers: list[TickerWeight]
+    force: bool = False
+
+
+@app.get("/api/portfolios")
+def get_portfolios():
+    return {"portfolios": list_portfolios()}
+
+
+@app.get("/api/portfolios/{name}")
+def get_portfolio(name: str):
+    try:
+        return check_portfolio(name)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.post("/api/portfolios")
+def create_portfolio(payload: PortfolioBuyRequest):
+    tickers = [t.model_dump() for t in payload.tickers]
+    try:
+        return buy_portfolio(payload.name, payload.amount, tickers, force=payload.force)
+    except FileExistsError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/portfolios/{name}")
+def remove_portfolio(name: str):
+    if not delete_portfolio(name):
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    return {"deleted": name}
 
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
