@@ -1,16 +1,17 @@
 """Curated ticker universe, each tagged with a GICS-style sector, the
 continent of the company's primary listing/headquarters, and an asset type
-(Stock, ETF, or Bitcoin).
+(Stock, ETF, or Crypto).
 
-This is a static seed list of well-known, liquid stocks, ETFs, and Bitcoin
-used as the screening universe. Non-US names are mostly USD-denominated ADRs
-so prices stay comparable across the whole universe. Sector-focused ETFs
-reuse the same sector names as stocks so they can be screened and compared
-side by side; broad-market/bond/commodity ETFs get their own pseudo-sectors
-since GICS sectors don't apply to them. Bitcoin trades 24/7 with no single
-listing venue, so it's tagged continent="Global" and sector="Cryptocurrency"
-rather than forced into a geography/GICS bucket that doesn't fit. Edit
-STOCKS to add/remove tickers, sectors, continents, or asset types.
+This is a static seed list of well-known, liquid stocks, ETFs, and
+cryptocurrencies used as the screening universe. Non-US names are mostly
+USD-denominated ADRs so prices stay comparable across the whole universe.
+Sector-focused ETFs reuse the same sector names as stocks so they can be
+screened and compared side by side; broad-market/bond/commodity ETFs get
+their own pseudo-sectors since GICS sectors don't apply to them.
+Cryptocurrencies trade 24/7 with no single listing venue, so they're tagged
+continent="Global" and sector="Cryptocurrency" rather than forced into a
+geography/GICS bucket that doesn't fit. Edit STOCKS to add/remove tickers,
+sectors, continents, or asset types.
 """
 from dataclasses import dataclass
 
@@ -193,7 +194,9 @@ STOCKS: list[Stock] = [
     Stock("USO", "Commodities", "North America", "ETF"),
 
     # --- Crypto (trades 24/7, no single listing venue/continent) ---
-    Stock("BTC-USD", "Cryptocurrency", "Global", "Bitcoin"),
+    Stock("BTC-USD", "Cryptocurrency", "Global", "Crypto"),
+    Stock("ETH-USD", "Cryptocurrency", "Global", "Crypto"),
+    Stock("SOL-USD", "Cryptocurrency", "Global", "Crypto"),
 ]
 
 _BY_SYMBOL: dict[str, Stock] = {s.symbol: s for s in STOCKS}

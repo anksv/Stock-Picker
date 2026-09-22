@@ -12,27 +12,27 @@ carry no guarantee about future performance.
 ## How it works
 
 - **Universe**: a curated list of liquid, well-known stocks, ETFs, and
-  Bitcoin tagged by sector, continent, and asset type (see
-  [`app/universe.py`](app/universe.py)). Non-US names are mostly
-  USD-denominated ADRs so prices stay comparable across the whole universe.
-  Sector-focused ETFs (e.g. `XLK` for Technology) reuse the same sector
-  names as stocks so they can be compared side by side; broad-market, bond,
-  and commodity ETFs get their own pseudo-sectors ("Broad Market", "Fixed
-  Income", "Commodities") since GICS sectors don't apply to them. Bitcoin
-  trades 24/7 with no single listing venue, so it's tagged
-  continent="Global" and sector="Cryptocurrency" instead of a geography or
-  GICS sector that doesn't really fit.
+  cryptocurrencies (Bitcoin, Ethereum, Solana) tagged by sector, continent,
+  and asset type (see [`app/universe.py`](app/universe.py)). Non-US names
+  are mostly USD-denominated ADRs so prices stay comparable across the
+  whole universe. Sector-focused ETFs (e.g. `XLK` for Technology) reuse the
+  same sector names as stocks so they can be compared side by side;
+  broad-market, bond, and commodity ETFs get their own pseudo-sectors
+  ("Broad Market", "Fixed Income", "Commodities") since GICS sectors don't
+  apply to them. Cryptocurrencies trade 24/7 with no single listing venue,
+  so they're tagged continent="Global" and sector="Cryptocurrency" instead
+  of a geography or GICS sector that doesn't really fit.
 - **Screening**: filter by sector, continent, asset type
-  (stocks/ETFs/Bitcoin/any combination), min/max price, recent growth, and
+  (stocks/ETFs/crypto/any combination), min/max price, recent growth, and
   financial stability.
-- **ETFs and Bitcoin**: neither is a company, so the revenue/earnings/
+- **ETFs and crypto**: neither is a company, so the revenue/earnings/
   margin/debt fundamentals and growth/stability filters don't apply to them
   (they'll never match "Growing" or "Financially stable" — that's expected,
   not a bug). Their score and business-quality label are based purely on
   their own price track record (CAGR and steadiness), not on financial
-  statements. Bitcoin is also the only asset tagged "Cryptocurrency", so it
-  has no sector peers to compare against in the competitive-position
-  section below — that's expected too, not a bug.
+  statements. A crypto asset with under ~7 years of price history (e.g.
+  Solana) is labeled "Insufficient History" rather than scored on too
+  little data.
 - **Scoring** (0-100, see [`app/scoring.py`](app/scoring.py)): combines
   50/200-day moving average trend, 14-day RSI, position within the 52-week
   range, the two fundamentals checks below, and long-term business quality

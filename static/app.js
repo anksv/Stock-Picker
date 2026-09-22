@@ -28,8 +28,8 @@ function qualityClass(label) {
   return "quality-" + label.toLowerCase().replace(/\s*\/\s*/g, "-").replace(/\s+/g, "-");
 }
 
-const ASSET_TYPE_LABELS = { ETF: "ETFs only", Stock: "Stocks only", Bitcoin: "Bitcoin only" };
-const ASSET_TYPE_CLASSES = { ETF: "etf-type", Bitcoin: "crypto-type" };
+const ASSET_TYPE_LABELS = { ETF: "ETFs only", Stock: "Stocks only", Crypto: "Crypto only" };
+const ASSET_TYPE_CLASSES = { ETF: "etf-type", Crypto: "crypto-type" };
 
 function isCompanyStock(r) {
   return r.asset_type === "Stock";
@@ -40,8 +40,8 @@ function assetTypeClass(assetType) {
 }
 
 function nonCompanyNote(assetType) {
-  if (assetType === "Bitcoin") {
-    return "Bitcoin isn't a company - it has no revenue, earnings, or management team, so financial-statement fundamentals don't apply. Quality below is based purely on its own price track record.";
+  if (assetType === "Crypto") {
+    return "Cryptocurrencies aren't companies - they have no revenue, earnings, or management team, so financial-statement fundamentals don't apply. Quality below is based purely on their own price track record.";
   }
   return "ETFs are funds, not companies, so revenue/earnings/margin/debt fundamentals don't apply. Quality below is based on the fund's own price track record.";
 }
@@ -191,7 +191,7 @@ function showDetail(r) {
         : `<span class="${r.vs_sector_return_pct >= 0 ? "pos" : "neg"}">${r.vs_sector_return_pct >= 0 ? "Outperforming" : "Underperforming"} by ${Math.abs(r.vs_sector_return_pct)}%</span>`}
     </p>
     <p style="color: var(--muted); font-size: 12px;">
-      "Peers" are other ${r.sector} assets in your current filters, not a fixed competitor list - this is a real computed number, but the peer group shrinks if you narrow the sector/continent/asset-type filters (Bitcoin is currently the only asset tagged "Cryptocurrency", so it has no peers to compare against).
+      "Peers" are other ${r.sector} assets in your current filters, not a fixed competitor list - this is a real computed number, but the peer group shrinks if you narrow the sector/continent/asset-type filters, and can be too small to be meaningful (e.g. "Cryptocurrency" currently has only a few members).
     </p>
 
     <h3 style="margin-bottom: 6px;">Recent News</h3>
@@ -322,10 +322,10 @@ async function scan() {
 scanBtn.addEventListener("click", scan);
 
 // Bitcoin trades around $80k+, well above the default $1000 max price - if
-// someone switches to "Bitcoin only" without having touched Max Price,
+// someone switches to "Crypto only" without having touched Max Price,
 // widen it for them so the obvious first scan isn't a silent zero-result trap.
 assetTypeSelect.addEventListener("change", () => {
-  if (assetTypeSelect.value === "Bitcoin" && Number(maxPriceInput.value) <= 1000) {
+  if (assetTypeSelect.value === "Crypto" && Number(maxPriceInput.value) <= 1000) {
     maxPriceInput.value = "200000";
   }
 });
