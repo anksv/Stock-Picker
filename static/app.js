@@ -308,7 +308,9 @@ async function scan() {
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
     lastResults = data.results;
-    statusEl.textContent = `${data.count} stocks match your filters. Click a row for details.`;
+    statusEl.textContent = data.count
+      ? `${data.count} stocks match your filters. Click a row for details.`
+      : `0 stocks match your filters. Double-check Min/Max Price - some assets fall outside the default range (e.g. Bitcoin trades around $80k+, well above the default $1000 max).`;
     renderTable();
   } catch (err) {
     statusEl.textContent = `Failed to scan: ${err.message}`;
@@ -318,5 +320,14 @@ async function scan() {
 }
 
 scanBtn.addEventListener("click", scan);
+
+// Bitcoin trades around $80k+, well above the default $1000 max price - if
+// someone switches to "Bitcoin only" without having touched Max Price,
+// widen it for them so the obvious first scan isn't a silent zero-result trap.
+assetTypeSelect.addEventListener("change", () => {
+  if (assetTypeSelect.value === "Bitcoin" && Number(maxPriceInput.value) <= 1000) {
+    maxPriceInput.value = "200000";
+  }
+});
 
 Promise.all([loadSectors(), loadContinents(), loadAssetTypes()]).then(scan);
