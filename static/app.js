@@ -28,6 +28,24 @@ function qualityClass(label) {
   return "quality-" + label.toLowerCase().replace(/\s*\/\s*/g, "-").replace(/\s+/g, "-");
 }
 
+const ASSET_TYPE_LABELS = { ETF: "ETFs only", Stock: "Stocks only", Bitcoin: "Bitcoin only" };
+const ASSET_TYPE_CLASSES = { ETF: "etf-type", Bitcoin: "crypto-type" };
+
+function isCompanyStock(r) {
+  return r.asset_type === "Stock";
+}
+
+function assetTypeClass(assetType) {
+  return ASSET_TYPE_CLASSES[assetType] || "stock-type";
+}
+
+function nonCompanyNote(assetType) {
+  if (assetType === "Bitcoin") {
+    return "Bitcoin isn't a company - it has no revenue, earnings, or management team, so financial-statement fundamentals don't apply. Quality below is based purely on its own price track record.";
+  }
+  return "ETFs are funds, not companies, so revenue/earnings/margin/debt fundamentals don't apply. Quality below is based on the fund's own price track record.";
+}
+
 function sortValue(row, key) {
   if (key === "best_buy_month") {
     const idx = MONTH_ORDER.indexOf(row[key]);
@@ -64,7 +82,7 @@ async function loadAssetTypes() {
   for (const t of data.asset_types) {
     const opt = document.createElement("option");
     opt.value = t;
-    opt.textContent = t === "ETF" ? "ETFs only" : "Stocks only";
+    opt.textContent = ASSET_TYPE_LABELS[t] || `${t} only`;
     assetTypeSelect.appendChild(opt);
   }
 }
@@ -82,7 +100,7 @@ function renderTable() {
     const changeClass = r.change_pct_1d >= 0 ? "pos" : "neg";
     tr.innerHTML = `
       <td class="symbol-cell" title="${r.name}">${r.symbol}</td>
-      <td><span class="badge ${r.asset_type === "ETF" ? "etf-type" : "stock-type"}">${r.asset_type}</span></td>
+      <td><span class="badge ${assetTypeClass(r.asset_type)}">${r.asset_type}</span></td>
       <td>${r.sector}</td>
       <td>${r.continent}</td>
       <td>$${r.price.toFixed(2)}</td>
@@ -130,9 +148,9 @@ function showDetail(r) {
     <p><strong>Historically cheapest month to buy:</strong> ${r.best_buy_month}</p>
     <p><strong>Listed since:</strong> ${r.listing_date ?? "unknown"}${r.years_listed !== null && r.years_listed !== undefined ? ` (${r.years_listed} years ago)` : ""}</p>
 
-    ${r.asset_type === "ETF" ? `
+    ${!isCompanyStock(r) ? `
     <p style="color: var(--muted); font-size: 12px;">
-      ETFs are funds, not companies, so revenue/earnings/margin/debt fundamentals don't apply. Quality below is based on the fund's own price track record.
+      ${nonCompanyNote(r.asset_type)}
     </p>
     ` : `
     <h3 style="margin-bottom: 6px;">Fundamentals</h3>
@@ -154,7 +172,7 @@ function showDetail(r) {
     </p>
     <p><strong>Price growth:</strong> ${r.price_cagr_10y_pct !== null ? `${pct(r.price_cagr_10y_pct)}/yr over ${r.years_of_price_history} years` : `not enough history yet (${r.years_of_price_history} years)`}</p>
     <p><strong>Year-to-year steadiness:</strong> ${r.price_volatility_10y_pct !== null ? `&plusmn;${r.price_volatility_10y_pct}% swing in annual returns (lower = steadier)` : "-"}</p>
-    ${r.asset_type === "ETF" ? "" : `
+    ${!isCompanyStock(r) ? "" : `
     <p><strong>Profitable years:</strong> ${r.profitable_years_ratio !== null ? `${Math.round(r.profitable_years_ratio * 100)}% of reported fiscal years` : "-"}</p>
     <p><strong>Gross margin (pricing power / customer loyalty):</strong> ${pct(r.gross_margin_pct)}</p>
     <p><strong>R&amp;D spend (product experimentation):</strong> ${r.rnd_to_revenue_pct !== null ? `${pct(r.rnd_to_revenue_pct)} of revenue` : "not reported - likely not an R&amp;D-driven business"}</p>
@@ -173,7 +191,7 @@ function showDetail(r) {
         : `<span class="${r.vs_sector_return_pct >= 0 ? "pos" : "neg"}">${r.vs_sector_return_pct >= 0 ? "Outperforming" : "Underperforming"} by ${Math.abs(r.vs_sector_return_pct)}%</span>`}
     </p>
     <p style="color: var(--muted); font-size: 12px;">
-      "Peers" are other ${r.sector} ${r.asset_type === "ETF" ? "ETFs/stocks" : "stocks"} in your current filters, not a fixed competitor list - this is a real computed number, but the peer group shrinks if you narrow the sector/continent/asset-type filters.
+      "Peers" are other ${r.sector} assets in your current filters, not a fixed competitor list - this is a real computed number, but the peer group shrinks if you narrow the sector/continent/asset-type filters (Bitcoin is currently the only asset tagged "Cryptocurrency", so it has no peers to compare against).
     </p>
 
     <h3 style="margin-bottom: 6px;">Recent News</h3>

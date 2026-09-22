@@ -214,6 +214,7 @@ tbody tr:hover {
 
 .badge.stock-type { background: rgba(154,161,172,0.15); color: var(--muted); }
 .badge.etf-type { background: rgba(79,140,255,0.18); color: var(--accent); }
+.badge.crypto-type { background: rgba(247,147,26,0.18); color: #f7931a; }
 
 .badge.news-positive { background: rgba(52,199,89,0.18); color: var(--green); }
 .badge.news-negative { background: rgba(255,92,92,0.15); color: var(--red); }

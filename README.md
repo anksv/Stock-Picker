@@ -11,22 +11,28 @@ carry no guarantee about future performance.
 
 ## How it works
 
-- **Universe**: a curated list of liquid, well-known stocks and ETFs tagged
-  by sector, continent, and asset type (see
+- **Universe**: a curated list of liquid, well-known stocks, ETFs, and
+  Bitcoin tagged by sector, continent, and asset type (see
   [`app/universe.py`](app/universe.py)). Non-US names are mostly
   USD-denominated ADRs so prices stay comparable across the whole universe.
   Sector-focused ETFs (e.g. `XLK` for Technology) reuse the same sector
   names as stocks so they can be compared side by side; broad-market, bond,
   and commodity ETFs get their own pseudo-sectors ("Broad Market", "Fixed
-  Income", "Commodities") since GICS sectors don't apply to them.
-- **Screening**: filter by sector, continent, asset type (stocks/ETFs/both),
-  min/max price, recent growth, and financial stability.
-- **ETFs**: are funds, not companies, so the revenue/earnings/margin/debt
-  fundamentals and growth/stability filters don't apply to them (an ETF
-  will never match "Growing" or "Financially stable" — that's expected, not
-  a bug). Their score and business-quality label are based purely on the
-  fund's own price track record (CAGR and steadiness), not on financial
-  statements.
+  Income", "Commodities") since GICS sectors don't apply to them. Bitcoin
+  trades 24/7 with no single listing venue, so it's tagged
+  continent="Global" and sector="Cryptocurrency" instead of a geography or
+  GICS sector that doesn't really fit.
+- **Screening**: filter by sector, continent, asset type
+  (stocks/ETFs/Bitcoin/any combination), min/max price, recent growth, and
+  financial stability.
+- **ETFs and Bitcoin**: neither is a company, so the revenue/earnings/
+  margin/debt fundamentals and growth/stability filters don't apply to them
+  (they'll never match "Growing" or "Financially stable" — that's expected,
+  not a bug). Their score and business-quality label are based purely on
+  their own price track record (CAGR and steadiness), not on financial
+  statements. Bitcoin is also the only asset tagged "Cryptocurrency", so it
+  has no sector peers to compare against in the competitive-position
+  section below — that's expected too, not a bug.
 - **Scoring** (0-100, see [`app/scoring.py`](app/scoring.py)): combines
   50/200-day moving average trend, 14-day RSI, position within the 52-week
   range, the two fundamentals checks below, and long-term business quality
@@ -63,13 +69,13 @@ carry no guarantee about future performance.
   Yahoo Finance's first-trade date). This reflects listing age, not
   necessarily how old the company itself is.
 - **Competitive position** ("vs Sector (3m)" column / detail panel):
-  compares a stock's own 3-month price return to the average 3-month
-  return of other stocks/ETFs tagged with the same sector *within your
-  current sector/continent/asset-type filters* — not a fixed competitor
-  list. This is a real, computed number (not fabricated), but the peer
-  group narrows if you narrow the filters, and it's a price-performance
-  proxy for competitive pressure, not a real competitive/market-share
-  analysis. Not folded into the score.
+  compares an asset's own 3-month price return to the average 3-month
+  return of other assets tagged with the same sector *within your current
+  sector/continent/asset-type filters* — not a fixed competitor list. This
+  is a real, computed number (not fabricated), but the peer group narrows
+  if you narrow the filters, and it's a price-performance proxy for
+  competitive pressure, not a real competitive/market-share analysis. Not
+  folded into the score.
 - **Recent news** (detail panel, loaded on click, not during a scan):
   the stock's latest headlines from Yahoo Finance, each tagged with a
   positive/negative/neutral dot from a **plain keyword count** — not real
