@@ -14,7 +14,22 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
+from app.news import get_news_signal
+
 NEW_LISTING_YEARS_THRESHOLD = 10
+
+# Points applied to the score for each news sentiment label - intentionally
+# small relative to the technical (~15) and business-quality (~20) swings,
+# since this comes from a plain keyword count over headlines, not real
+# sentiment analysis. "Mixed" (conflicting positive/negative headlines)
+# nudges down slightly rather than canceling out, as a touch of caution.
+NEWS_SCORE_DELTA = {
+    "Positive": 6,
+    "Negative": -6,
+    "Mixed": -2,
+    "Neutral": 0,
+    "No Recent News": 0,
+}
 
 MONTH_NAMES = list(calendar.month_abbr)  # index 1-12
 
@@ -56,6 +71,10 @@ class StockResult:
     business_quality_score: int
     business_quality_label: str
     is_durable_compounder: bool
+    news_sentiment_label: str
+    news_sentiment_score: int
+    news_score_adjustment: int
+    news_headlines: list
     score: int
     signal: str
 
@@ -110,6 +129,7 @@ def _score_and_signal(
     quarterly_growth_positive: bool,
     financially_stable: bool,
     business_quality_score: int,
+    news_score_adjustment: int,
 ) -> tuple[int, str]:
     score = 50
 
@@ -150,6 +170,11 @@ def _score_and_signal(
     # spend) is weighted as heavily as the short-term technicals above: up to
     # +/-20 points.
     score += round((business_quality_score - 50) * 0.4)
+
+    # Recent news sentiment - a short-term factor like RSI, not a long-term
+    # quality signal, and intentionally capped small (see NEWS_SCORE_DELTA)
+    # since it comes from a plain keyword count, not real sentiment analysis.
+    score += news_score_adjustment
 
     score = int(max(0, min(100, score)))
 
@@ -398,6 +423,8 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
     fundamentals = _fundamentals(info)
     listing_age = _listing_age(info)
     business_quality = _business_quality(history, income_stmt)
+    news = get_news_signal(symbol, name)
+    news_score_adjustment = NEWS_SCORE_DELTA.get(news["sentiment_label"], 0)
 
     closes = history["Close"].dropna()
     price = round(float(closes.iloc[-1]), 2)
@@ -431,6 +458,7 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
         fundamentals["quarterly_growth_positive"],
         fundamentals["financially_stable"],
         business_quality["business_quality_score"],
+        news_score_adjustment,
     )
 
     return StockResult(
@@ -450,6 +478,10 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
         return_3m_pct=return_3m_pct,
         best_buy_month=best_month,
         seasonality=seasonality,
+        news_sentiment_label=news["sentiment_label"],
+        news_sentiment_score=news["sentiment_score"],
+        news_score_adjustment=news_score_adjustment,
+        news_headlines=news["headlines"],
         score=score,
         signal=signal,
         **fundamentals,

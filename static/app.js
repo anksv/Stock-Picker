@@ -195,7 +195,7 @@ function showDetail(r) {
     </p>
 
     <h3 style="margin-bottom: 6px;">Recent News</h3>
-    <div id="newsSection"><p style="color: var(--muted); font-size: 13px;">Loading recent news&hellip;</p></div>
+    ${renderNews(r)}
 
     <p style="color: var(--muted); font-size: 12px; margin-top: 8px;">
       Seasonality below shows each month's average closing price relative to that year's mean, averaged over the last ~10 years. Negative = historically cheaper.
@@ -203,63 +203,47 @@ function showDetail(r) {
     <div class="season-grid">${seasonCells}</div>
   `;
   detailPanel.classList.remove("hidden");
-  loadNews(r.symbol, r.name);
 }
 
 function newsSentimentClass(label) {
   return "news-" + label.toLowerCase().replace(/\s+/g, "-");
 }
 
-async function loadNews(symbol, name) {
-  const container = document.getElementById("newsSection");
-  try {
-    const params = new URLSearchParams(name ? { name } : {});
-    const res = await fetch(`/api/news/${encodeURIComponent(symbol)}?${params}`);
-    if (!res.ok) throw new Error(`Server error: ${res.status}`);
-    const data = await res.json();
-    // The panel may have been closed/reopened on a different symbol while this was in flight.
-    const current = document.getElementById("newsSection");
-    if (!current) return;
-
-    if (!data.headlines.length) {
-      current.innerHTML = `<p style="color: var(--muted); font-size: 13px;">No recent news found for ${symbol}.</p>`;
-      return;
-    }
-
-    const items = data.headlines
-      .map((h) => {
-        const date = h.published_at ? new Date(h.published_at).toLocaleDateString() : "";
-        const title = h.url
-          ? `<a href="${h.url}" target="_blank" rel="noopener noreferrer">${h.title}</a>`
-          : h.title;
-        return `
-          <li class="news-item">
-            <span class="news-dot ${h.sentiment}"></span>
-            <div>
-              <div>${title}</div>
-              <div style="color: var(--muted); font-size: 12px;">${h.publisher ?? "Unknown source"}${date ? " &middot; " + date : ""} &middot; via ${h.source_channel}</div>
-            </div>
-          </li>
-        `;
-      })
-      .join("");
-
-    current.innerHTML = `
-      <p>
-        <strong>Headline tally:</strong>
-        <span class="badge ${newsSentimentClass(data.sentiment_label)}">${data.sentiment_label}</span>
-      </p>
-      <ul class="news-list">${items}</ul>
-      <p style="color: var(--muted); font-size: 12px;">
-        Merged from Yahoo Finance's own feed and Google News (which surfaces real newspaper/wire coverage - Reuters, Bloomberg, WSJ, etc. - when they cover this ticker). The colored dot is a plain positive/negative keyword count, not real sentiment analysis or NLP - it can easily misread a headline (e.g. "beats" about a competitor). Read the linked articles yourself before acting on anything here.
-      </p>
-    `;
-  } catch (err) {
-    const current = document.getElementById("newsSection");
-    if (current) {
-      current.innerHTML = `<p style="color: var(--muted); font-size: 13px;">Couldn't load news: ${err.message}</p>`;
-    }
+function renderNews(r) {
+  if (!r.news_headlines.length) {
+    return `<p style="color: var(--muted); font-size: 13px;">No recent news found for ${r.symbol}.</p>`;
   }
+
+  const items = r.news_headlines
+    .map((h) => {
+      const date = h.published_at ? new Date(h.published_at).toLocaleDateString() : "";
+      const title = h.url
+        ? `<a href="${h.url}" target="_blank" rel="noopener noreferrer">${h.title}</a>`
+        : h.title;
+      return `
+        <li class="news-item">
+          <span class="news-dot ${h.sentiment}"></span>
+          <div>
+            <div>${title}</div>
+            <div style="color: var(--muted); font-size: 12px;">${h.publisher ?? "Unknown source"}${date ? " &middot; " + date : ""} &middot; via ${h.source_channel}</div>
+          </div>
+        </li>
+      `;
+    })
+    .join("");
+
+  return `
+    <p>
+      <strong>Headline tally:</strong>
+      <span class="badge ${newsSentimentClass(r.news_sentiment_label)}">${r.news_sentiment_label}</span>
+      &nbsp; <strong>Score impact:</strong>
+      <span class="${r.news_score_adjustment > 0 ? "pos" : r.news_score_adjustment < 0 ? "neg" : ""}">${r.news_score_adjustment > 0 ? "+" : ""}${r.news_score_adjustment} points</span>
+    </p>
+    <ul class="news-list">${items}</ul>
+    <p style="color: var(--muted); font-size: 12px;">
+      Merged from Yahoo Finance's own feed and Google News (which surfaces real newspaper/wire coverage - Reuters, Bloomberg, WSJ, etc. - when they cover this ticker). The colored dot, and the score impact above, come from a plain positive/negative keyword count, not real sentiment analysis or NLP - it can easily misread a headline (e.g. "beats" about a competitor). Read the linked articles yourself before acting on anything here. This is intentionally a small, capped nudge to the Score/Signal only - it does not affect Business Quality or Financial Stability, which stay based on structural/factual data.
+    </p>
+  `;
 }
 
 closeDetail.addEventListener("click", () => detailPanel.classList.add("hidden"));
@@ -293,7 +277,7 @@ updateSortIndicators();
 
 async function scan() {
   scanBtn.disabled = true;
-  statusEl.textContent = "Scanning market data... this can take up to a minute on first run.";
+  statusEl.textContent = "Scanning market data and news... this can take a couple of minutes on first run.";
   resultsBody.innerHTML = "";
   try {
     const params = new URLSearchParams({

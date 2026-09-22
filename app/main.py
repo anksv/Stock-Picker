@@ -8,11 +8,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.news import get_news_signal
 from app.scoring import analyze_ticker
 from app.universe import (
     all_asset_types,
@@ -125,20 +124,6 @@ def get_screen(
         filtered = [r for r in filtered if r["financially_stable"]]
     filtered.sort(key=lambda r: r["score"], reverse=True)
     return {"count": len(filtered), "results": filtered}
-
-
-@app.get("/api/news/{symbol}")
-def get_news(symbol: str, name: str = Query(default="")):
-    """Fetched on demand (only when a stock's detail panel is opened), not
-    during a full scan - news is a per-symbol call that would otherwise
-    slow every screen down for a feature most results never get viewed.
-    `name` (the company/asset name) improves the Google News search query -
-    ticker symbols alone are often too ambiguous or too obscure to match.
-    """
-    symbol = symbol.upper()
-    if asset_type_for_ticker(symbol) is None:
-        raise HTTPException(status_code=404, detail="Unknown symbol")
-    return get_news_signal(symbol, name or None)
 
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

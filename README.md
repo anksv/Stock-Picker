@@ -35,13 +35,16 @@ carry no guarantee about future performance.
   little data.
 - **Scoring** (0-100, see [`app/scoring.py`](app/scoring.py)): combines
   50/200-day moving average trend, 14-day RSI, position within the 52-week
-  range, the two fundamentals checks below, and long-term business quality
-  (next bullet) into a composite score and a signal (Strong Buy / Buy /
-  Hold / Avoid / Overbought). Business quality is weighted as heavily as
-  the short-term technicals (up to &plusmn;20 of the 100 points), so a
-  steady long-term compounder with weak near-term momentum can still score
-  well, and a volatile, loss-making business can't overcome a poor
-  long-term record just by looking technically "oversold".
+  range, the two fundamentals checks below, long-term business quality, and
+  recent news sentiment (both described below) into a composite score and a
+  signal (Strong Buy / Buy / Hold / Avoid / Overbought). Business quality is
+  weighted as heavily as the short-term technicals (up to &plusmn;20 of the
+  100 points), so a steady long-term compounder with weak near-term
+  momentum can still score well, and a volatile, loss-making business can't
+  overcome a poor long-term record just by looking technically "oversold".
+  News sentiment is a much smaller, capped nudge (&plusmn;6, &plusmn;2 for
+  "Mixed") — see the news bullet for why it's kept deliberately small and
+  scoped to the score only, not Business Quality or Financial Stability.
 - **Business quality** ("Business Quality" column / detail panel section):
   answers "has this been a durable, loyal-customer business, or one still
   experimenting?" using what Yahoo Finance exposes for free — up to 10
@@ -76,24 +79,39 @@ carry no guarantee about future performance.
   if you narrow the filters, and it's a price-performance proxy for
   competitive pressure, not a real competitive/market-share analysis. Not
   folded into the score.
-- **Recent news** (detail panel, loaded on click, not during a scan; see
-  [`app/news.py`](app/news.py)): the stock's latest headlines merged from
-  two free sources — Yahoo Finance's own per-ticker feed, and Google News
-  RSS searched by company name (which is what actually surfaces real
-  newspaper/wire-service coverage — Reuters, Bloomberg, WSJ, AP, etc. — for
-  a ticker, since none of those outlets has a free public API of their
-  own). Each headline shows which source it came from and is tagged with a
-  positive/negative/neutral dot from a **plain keyword count** — not real
-  sentiment analysis, NLP, or an LLM reading the articles. It can easily
-  misread a headline (e.g. "beats" about a competitor, an unrelated market
-  headline that mentions the ticker). Treat it as a pointer to read the
-  linked articles yourself, not a verdict. Not folded into the score. News
-  is fetched on demand per stock (not during a bulk scan, so it doesn't
-  slow down screening) and cached for 20 minutes.
-  Google's own feed license restricts this RSS to "a personal feed reader
-  for personal, non-commercial use" — fine for this local, single-user
-  tool as-is, but don't adapt this code to redistribute the feed or run it
-  as a shared/commercial service.
+- **Recent news** (detail panel; see [`app/news.py`](app/news.py)): the
+  stock's latest headlines merged from two free sources — Yahoo Finance's
+  own per-ticker feed, and Google News RSS searched by company name (which
+  is what actually surfaces real newspaper/wire-service coverage — Reuters,
+  Bloomberg, WSJ, AP, etc. — for a ticker, since none of those outlets has
+  a free public API of their own). Each headline shows which source it
+  came from and is tagged with a positive/negative/neutral dot from a
+  **plain keyword count** — not real sentiment analysis, NLP, or an LLM
+  reading the articles. It can easily misread a headline (e.g. "beats"
+  about a competitor, an unrelated market headline that mentions the
+  ticker). Treat it as a pointer to read the linked articles yourself, not
+  a verdict.
+  Fetched once per stock *during the scan* (not lazily on click) precisely
+  because it now feeds the score, so the Signal shown in the table and the
+  breakdown in the detail panel always agree; cached per symbol for 20
+  minutes so repeat scans don't re-fetch. Google's own feed license
+  restricts the RSS to "a personal feed reader for personal, non-commercial
+  use" — fine for this local, single-user tool as-is, but don't adapt this
+  code to redistribute the feed or run it as a shared/commercial service.
+- **Why news only moves the Score, not Business Quality or Financial
+  Stability**: those two are deliberately built from structural, factual
+  data — a 10-year price/profitability track record and actual
+  balance-sheet ratios (current ratio, debt/equity, profit margin). A
+  company's real solvency or long-term durability doesn't change because
+  of today's headlines, and blending in a noisy keyword count would make
+  those labels less trustworthy (e.g. a financially solid company getting
+  flagged "elevated risk" over one unrelated negative headline). News
+  sentiment is scoped to the Score/Signal instead, alongside the other
+  short-term factors (RSI, moving averages) that are already allowed to
+  move day-to-day, and capped small (&plusmn;6, &plusmn;2 for "Mixed")
+  relative to those (up to &plusmn;20) given how unreliable the underlying
+  keyword count is. The exact points applied are shown in the detail
+  panel's Recent News section ("Score impact").
 - **On geography and politics**: deliberately not included. There's no
   reliable free, live data source for "how geography/local politics
   impacts this stock" — faking that with hardcoded per-country notes would
@@ -122,9 +140,10 @@ price range and click **Scan**. Click any row for a detailed breakdown,
 including the company name and the month-by-month seasonality chart.
 
 The first scan for a given sector/continent/asset-type combination fetches
-live data via `yfinance` and can take up to a minute or two (each ticker
-needs a 10-year price-history call, a fundamentals call, and an
-annual-financials call); results are cached in-memory for 15 minutes.
+live data and can take up to a couple of minutes (each ticker needs a
+10-year price-history call, a fundamentals call, an annual-financials call,
+and now a news call too); results are cached in-memory for 15 minutes. News
+itself is cached separately per symbol for 20 minutes.
 
 ## Customizing the universe
 
