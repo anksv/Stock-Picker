@@ -212,6 +212,12 @@ tbody tr:hover {
 .badge.quality-volatile-experimental { background: rgba(255,92,92,0.15); color: var(--red); }
 .badge.quality-insufficient-history { background: rgba(154,161,172,0.15); color: var(--muted); }
 
+.badge.valuation-undervalued { background: rgba(52,199,89,0.18); color: var(--green); }
+.badge.valuation-reasonably-valued { background: rgba(79,140,255,0.18); color: var(--accent); }
+.badge.valuation-fully-valued { background: rgba(245,197,66,0.15); color: var(--yellow); }
+.badge.valuation-overvalued { background: rgba(255,92,92,0.15); color: var(--red); }
+.badge.valuation-no-valuation-data { background: rgba(154,161,172,0.15); color: var(--muted); }
+
 .badge.stock-type { background: rgba(154,161,172,0.15); color: var(--muted); }
 .badge.etf-type { background: rgba(79,140,255,0.18); color: var(--accent); }
 .badge.crypto-type { background: rgba(247,147,26,0.18); color: #f7931a; }

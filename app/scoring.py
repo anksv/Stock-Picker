@@ -71,6 +71,14 @@ class StockResult:
     business_quality_score: int
     business_quality_label: str
     is_durable_compounder: bool
+    trailing_pe: float | None
+    forward_pe: float | None
+    peg_ratio: float | None
+    analyst_recommendation: str | None
+    analyst_recommendation_mean: float | None
+    analyst_opinion_count: int | None
+    valuation_score: int
+    valuation_label: str
     news_sentiment_label: str
     news_sentiment_score: int
     news_score_adjustment: int
@@ -129,6 +137,7 @@ def _score_and_signal(
     quarterly_growth_positive: bool,
     financially_stable: bool,
     business_quality_score: int,
+    valuation_score: int,
     news_score_adjustment: int,
 ) -> tuple[int, str]:
     score = 50
@@ -170,6 +179,14 @@ def _score_and_signal(
     # spend) is weighted as heavily as the short-term technicals above: up to
     # +/-20 points.
     score += round((business_quality_score - 50) * 0.4)
+
+    # Valuation (P/E, PEG, analyst consensus) - is the current price a good
+    # deal, independent of how good the business itself is. Weighted less
+    # than business quality since P/E-style ratios are a blunter, more
+    # context-dependent signal (e.g. a high P/E can be justified by high
+    # growth - PEG partly corrects for that, but not perfectly): up to
+    # +/-15 points.
+    score += round((valuation_score - 50) * 0.3)
 
     # Recent news sentiment - a short-term factor like RSI, not a long-term
     # quality signal, and intentionally capped small (see NEWS_SCORE_DELTA)
@@ -399,6 +416,99 @@ def _business_quality(history: pd.DataFrame, income_stmt: pd.DataFrame) -> dict:
     }
 
 
+def _valuation(info: dict) -> dict:
+    """"Is the current price a good deal?" - separate from Business Quality
+    (which is about the durability of the business, not what you'd pay for
+    it). Built from three free Yahoo Finance fields:
+      - trailing P/E: price vs. the last 12 months of actual earnings.
+      - PEG ratio: P/E divided by expected earnings growth - a classic
+        "cheap Growth" check (PEG < 1 is the textbook undervalued signal).
+      - analyst consensus: the average sell-side rating Yahoo aggregates
+        across covering analysts (1.0 = Strong Buy ... 5.0 = Strong Sell).
+
+    Note: there is no free public API for Zacks Investment Research's
+    proprietary Zacks Rank/Style Scores - that's a paid subscription
+    product, and Yahoo Finance/yfinance doesn't expose it either. This uses
+    Yahoo's own analyst-consensus aggregation instead, which is free and
+    real but is NOT Zacks data - don't read `analyst_recommendation` as a
+    Zacks Rank.
+    """
+    trailing_pe = info.get("trailingPE")
+    forward_pe = info.get("forwardPE")
+    peg_ratio = info.get("trailingPegRatio") or info.get("pegRatio")
+    recommendation_key = info.get("recommendationKey")
+    recommendation_mean = info.get("recommendationMean")
+    opinion_count = info.get("numberOfAnalystOpinions")
+
+    trailing_pe = round(float(trailing_pe), 1) if trailing_pe is not None else None
+    forward_pe = round(float(forward_pe), 1) if forward_pe is not None else None
+    peg_ratio = round(float(peg_ratio), 2) if peg_ratio is not None else None
+    recommendation_mean = round(float(recommendation_mean), 2) if recommendation_mean is not None else None
+    if recommendation_key in (None, "none"):
+        recommendation_key = None
+
+    have_data = trailing_pe is not None or peg_ratio is not None or recommendation_mean is not None
+    score = 50
+
+    if trailing_pe is not None:
+        if trailing_pe <= 0:
+            score -= 10  # negative earnings
+        elif trailing_pe <= 15:
+            score += 15
+        elif trailing_pe <= 25:
+            score += 8
+        elif trailing_pe <= 40:
+            score -= 3
+        else:
+            score -= 12
+
+    if peg_ratio is not None and peg_ratio > 0:
+        if peg_ratio <= 1:
+            score += 15
+        elif peg_ratio <= 2:
+            score += 6
+        elif peg_ratio <= 3:
+            score -= 3
+        else:
+            score -= 10
+
+    if recommendation_mean is not None:
+        if recommendation_mean <= 1.5:
+            score += 10
+        elif recommendation_mean <= 2.5:
+            score += 5
+        elif recommendation_mean <= 3.5:
+            score += 0
+        elif recommendation_mean <= 4.5:
+            score -= 8
+        else:
+            score -= 15
+
+    score = int(max(0, min(100, score))) if have_data else 50
+
+    if not have_data:
+        label = "No Valuation Data"
+    elif score >= 70:
+        label = "Undervalued"
+    elif score >= 55:
+        label = "Reasonably Valued"
+    elif score >= 40:
+        label = "Fully Valued"
+    else:
+        label = "Overvalued"
+
+    return {
+        "trailing_pe": trailing_pe,
+        "forward_pe": forward_pe,
+        "peg_ratio": peg_ratio,
+        "analyst_recommendation": recommendation_key,
+        "analyst_recommendation_mean": recommendation_mean,
+        "analyst_opinion_count": int(opinion_count) if opinion_count else None,
+        "valuation_score": score,
+        "valuation_label": label,
+    }
+
+
 def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "Stock") -> StockResult | None:
     ticker = yf.Ticker(symbol)
     try:
@@ -423,6 +533,7 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
     fundamentals = _fundamentals(info)
     listing_age = _listing_age(info)
     business_quality = _business_quality(history, income_stmt)
+    valuation = _valuation(info)
     news = get_news_signal(symbol, name)
     news_score_adjustment = NEWS_SCORE_DELTA.get(news["sentiment_label"], 0)
 
@@ -458,6 +569,7 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
         fundamentals["quarterly_growth_positive"],
         fundamentals["financially_stable"],
         business_quality["business_quality_score"],
+        valuation["valuation_score"],
         news_score_adjustment,
     )
 
@@ -487,4 +599,5 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
         **fundamentals,
         **listing_age,
         **business_quality,
+        **valuation,
     )

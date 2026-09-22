@@ -35,16 +35,34 @@ carry no guarantee about future performance.
   little data.
 - **Scoring** (0-100, see [`app/scoring.py`](app/scoring.py)): combines
   50/200-day moving average trend, 14-day RSI, position within the 52-week
-  range, the two fundamentals checks below, long-term business quality, and
-  recent news sentiment (both described below) into a composite score and a
-  signal (Strong Buy / Buy / Hold / Avoid / Overbought). Business quality is
-  weighted as heavily as the short-term technicals (up to &plusmn;20 of the
-  100 points), so a steady long-term compounder with weak near-term
-  momentum can still score well, and a volatile, loss-making business can't
-  overcome a poor long-term record just by looking technically "oversold".
-  News sentiment is a much smaller, capped nudge (&plusmn;6, &plusmn;2 for
-  "Mixed") — see the news bullet for why it's kept deliberately small and
-  scoped to the score only, not Business Quality or Financial Stability.
+  range, the two fundamentals checks below, long-term business quality,
+  valuation, and recent news sentiment (all described below) into a
+  composite score and a signal (Strong Buy / Buy / Hold / Avoid /
+  Overbought). Business quality is weighted as heavily as the short-term
+  technicals (up to &plusmn;20 of the 100 points), so a steady long-term
+  compounder with weak near-term momentum can still score well, and a
+  volatile, loss-making business can't overcome a poor long-term record
+  just by looking technically "oversold". Valuation is weighted a bit less
+  (up to &plusmn;15) since P/E-style ratios are blunter and more
+  context-dependent. News sentiment is a much smaller, capped nudge
+  (&plusmn;6, &plusmn;2 for "Mixed") — see the news bullet for why it's
+  kept deliberately small and scoped to the score only, not Business
+  Quality or Financial Stability.
+- **Valuation** ("Valuation" column / detail panel section): "is the
+  current price a good deal", independent of how good the business itself
+  is (that's what Business Quality answers). Built from three free Yahoo
+  Finance fields: trailing P/E, PEG ratio (P/E divided by expected earnings
+  growth — PEG &le; 1 is the classic Peter Lynch "cheap relative to growth"
+  rule of thumb), and Yahoo's own aggregated analyst consensus (1 = Strong
+  Buy ... 5 = Strong Sell across covering analysts). **This is not Zacks
+  Investment Research data** — Zacks Rank/Style Scores are a paid
+  subscription product with no free public API, so there's no legitimate
+  free way to pull them in; Yahoo's analyst-consensus aggregation is the
+  closest free, real equivalent. A stock with no earnings (no P/E, common
+  for young/loss-making companies), no growth estimate (no PEG), or no
+  analyst coverage (ETFs, crypto, small/foreign names) is scored on
+  whatever of the three is available, or shown "No Valuation Data" if none
+  are — never penalized just for missing data.
 - **Business quality** ("Business Quality" column / detail panel section):
   answers "has this been a durable, loyal-customer business, or one still
   experimenting?" using what Yahoo Finance exposes for free — up to 10

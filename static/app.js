@@ -18,7 +18,7 @@ let sortKey = "score";
 let sortDir = -1;
 
 const MONTH_ORDER = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const DESCENDING_BY_DEFAULT = new Set(["price", "score", "change_pct_1d", "week52_position_pct", "rsi14", "business_quality_score", "vs_sector_return_pct"]);
+const DESCENDING_BY_DEFAULT = new Set(["price", "score", "change_pct_1d", "week52_position_pct", "rsi14", "business_quality_score", "valuation_score", "vs_sector_return_pct"]);
 
 function signalClass(signal) {
   return signal.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z-]/g, "");
@@ -26,6 +26,10 @@ function signalClass(signal) {
 
 function qualityClass(label) {
   return "quality-" + label.toLowerCase().replace(/\s*\/\s*/g, "-").replace(/\s+/g, "-");
+}
+
+function valuationClass(label) {
+  return "valuation-" + label.toLowerCase().replace(/\s+/g, "-");
 }
 
 const ASSET_TYPE_LABELS = { ETF: "ETFs only", Stock: "Stocks only", Crypto: "Crypto only" };
@@ -113,6 +117,7 @@ function renderTable() {
         ${r.is_new_listing ? '<span class="badge new" title="Listed on the market less than 10 years ago">New</span>' : ""}
       </td>
       <td><span class="badge ${qualityClass(r.business_quality_label)}" title="${r.business_quality_label} (${r.business_quality_score}/100)">${r.business_quality_label}</span></td>
+      <td><span class="badge ${valuationClass(r.valuation_label)}" title="${r.valuation_label} (${r.valuation_score}/100)">${r.valuation_label}</span></td>
       <td class="${r.vs_sector_return_pct === null ? "" : r.vs_sector_return_pct >= 0 ? "pos" : "neg"}" title="3-month return vs. average of same-sector peers in your current results">${r.vs_sector_return_pct === null ? "-" : pct(r.vs_sector_return_pct)}</td>
       <td>${r.best_buy_month}</td>
     `;
@@ -179,6 +184,18 @@ function showDetail(r) {
     `}
     <p style="color: var(--muted); font-size: 12px;">
       Based on up to 10 years of price history and the last ~4-5 fiscal years Yahoo Finance reports for free. A high score favors steady compounding, a consistent profit record, strong stable margins, and low reliance on new-product bets - i.e. a loyal customer base buying the same core products, rather than a company still experimenting to find one.
+    </p>
+
+    <h3 style="margin-bottom: 6px;">Valuation</h3>
+    <p>
+      <span class="badge ${valuationClass(r.valuation_label)}">${r.valuation_label}</span>
+      &nbsp; <strong>Valuation score:</strong> ${r.valuation_score}/100
+    </p>
+    <p><strong>Trailing P/E:</strong> ${r.trailing_pe ?? "-"} &nbsp; <strong>Forward P/E:</strong> ${r.forward_pe ?? "-"}</p>
+    <p><strong>PEG ratio:</strong> ${r.peg_ratio ?? "-"}${r.peg_ratio !== null ? (r.peg_ratio <= 1 ? " (cheap relative to growth)" : r.peg_ratio > 3 ? " (expensive relative to growth)" : "") : ""}</p>
+    <p><strong>Analyst consensus:</strong> ${r.analyst_recommendation ? `${r.analyst_recommendation} (${r.analyst_recommendation_mean}/5, ${r.analyst_opinion_count ?? "?"} analysts)` : "no analyst coverage"}</p>
+    <p style="color: var(--muted); font-size: 12px;">
+      P/E and PEG come from Yahoo Finance; "PEG &le; 1" is the classic Peter Lynch cheap-relative-to-growth rule of thumb, not a guarantee. Analyst consensus is Yahoo's own aggregation of sell-side analyst ratings (1 = Strong Buy, 5 = Strong Sell) - note this is <strong>not</strong> Zacks Investment Research data, since Zacks Rank/Style Scores are a paid subscription product with no free public API. A stock with no earnings (P/E) or no analyst coverage (funds, small/foreign names) is valued on whatever of the three is available, or shown "No Valuation Data" if none are.
     </p>
 
     <h3 style="margin-bottom: 6px;">Competitive Position</h3>
