@@ -128,15 +128,17 @@ def get_screen(
 
 
 @app.get("/api/news/{symbol}")
-def get_news(symbol: str):
+def get_news(symbol: str, name: str = Query(default="")):
     """Fetched on demand (only when a stock's detail panel is opened), not
     during a full scan - news is a per-symbol call that would otherwise
     slow every screen down for a feature most results never get viewed.
+    `name` (the company/asset name) improves the Google News search query -
+    ticker symbols alone are often too ambiguous or too obscure to match.
     """
     symbol = symbol.upper()
     if asset_type_for_ticker(symbol) is None:
         raise HTTPException(status_code=404, detail="Unknown symbol")
-    return get_news_signal(symbol)
+    return get_news_signal(symbol, name or None)
 
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

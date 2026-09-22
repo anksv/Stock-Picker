@@ -203,17 +203,18 @@ function showDetail(r) {
     <div class="season-grid">${seasonCells}</div>
   `;
   detailPanel.classList.remove("hidden");
-  loadNews(r.symbol);
+  loadNews(r.symbol, r.name);
 }
 
 function newsSentimentClass(label) {
   return "news-" + label.toLowerCase().replace(/\s+/g, "-");
 }
 
-async function loadNews(symbol) {
+async function loadNews(symbol, name) {
   const container = document.getElementById("newsSection");
   try {
-    const res = await fetch(`/api/news/${encodeURIComponent(symbol)}`);
+    const params = new URLSearchParams(name ? { name } : {});
+    const res = await fetch(`/api/news/${encodeURIComponent(symbol)}?${params}`);
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
     // The panel may have been closed/reopened on a different symbol while this was in flight.
@@ -236,7 +237,7 @@ async function loadNews(symbol) {
             <span class="news-dot ${h.sentiment}"></span>
             <div>
               <div>${title}</div>
-              <div style="color: var(--muted); font-size: 12px;">${h.publisher ?? "Unknown source"}${date ? " &middot; " + date : ""}</div>
+              <div style="color: var(--muted); font-size: 12px;">${h.publisher ?? "Unknown source"}${date ? " &middot; " + date : ""} &middot; via ${h.source_channel}</div>
             </div>
           </li>
         `;
@@ -250,7 +251,7 @@ async function loadNews(symbol) {
       </p>
       <ul class="news-list">${items}</ul>
       <p style="color: var(--muted); font-size: 12px;">
-        This is a plain positive/negative keyword count over the headlines below, not real sentiment analysis or NLP - it can easily misread a headline (e.g. "beats" about a competitor). Read the linked articles yourself before acting on anything here.
+        Merged from Yahoo Finance's own feed and Google News (which surfaces real newspaper/wire coverage - Reuters, Bloomberg, WSJ, etc. - when they cover this ticker). The colored dot is a plain positive/negative keyword count, not real sentiment analysis or NLP - it can easily misread a headline (e.g. "beats" about a competitor). Read the linked articles yourself before acting on anything here.
       </p>
     `;
   } catch (err) {

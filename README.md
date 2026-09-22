@@ -76,15 +76,24 @@ carry no guarantee about future performance.
   if you narrow the filters, and it's a price-performance proxy for
   competitive pressure, not a real competitive/market-share analysis. Not
   folded into the score.
-- **Recent news** (detail panel, loaded on click, not during a scan):
-  the stock's latest headlines from Yahoo Finance, each tagged with a
+- **Recent news** (detail panel, loaded on click, not during a scan; see
+  [`app/news.py`](app/news.py)): the stock's latest headlines merged from
+  two free sources — Yahoo Finance's own per-ticker feed, and Google News
+  RSS searched by company name (which is what actually surfaces real
+  newspaper/wire-service coverage — Reuters, Bloomberg, WSJ, AP, etc. — for
+  a ticker, since none of those outlets has a free public API of their
+  own). Each headline shows which source it came from and is tagged with a
   positive/negative/neutral dot from a **plain keyword count** — not real
   sentiment analysis, NLP, or an LLM reading the articles. It can easily
   misread a headline (e.g. "beats" about a competitor, an unrelated market
   headline that mentions the ticker). Treat it as a pointer to read the
-  linked articles yourself, not a verdict. Not folded into the score.
-  News is fetched on demand per stock (not during a bulk scan, so it
-  doesn't slow down screening) and cached for 20 minutes.
+  linked articles yourself, not a verdict. Not folded into the score. News
+  is fetched on demand per stock (not during a bulk scan, so it doesn't
+  slow down screening) and cached for 20 minutes.
+  Google's own feed license restricts this RSS to "a personal feed reader
+  for personal, non-commercial use" — fine for this local, single-user
+  tool as-is, but don't adapt this code to redistribute the feed or run it
+  as a shared/commercial service.
 - **On geography and politics**: deliberately not included. There's no
   reliable free, live data source for "how geography/local politics
   impacts this stock" — faking that with hardcoded per-country notes would
