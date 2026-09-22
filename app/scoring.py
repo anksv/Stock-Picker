@@ -34,6 +34,7 @@ class StockResult:
     week52_low: float
     week52_high: float
     week52_position_pct: float
+    return_3m_pct: float | None
     best_buy_month: str
     seasonality: list
     revenue_growth_pct: float | None
@@ -413,6 +414,12 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
     span = (week52_high - week52_low) or 1.0
     week52_position_pct = round((price - week52_low) / span * 100, 1)
 
+    return_3m_pct = None
+    if len(closes) > 63:
+        past_price = float(closes.iloc[-64])
+        if past_price > 0:
+            return_3m_pct = round((price - past_price) / past_price * 100, 1)
+
     best_month, seasonality = _seasonality(history)
 
     score, signal = _score_and_signal(
@@ -440,6 +447,7 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
         week52_low=week52_low,
         week52_high=week52_high,
         week52_position_pct=week52_position_pct,
+        return_3m_pct=return_3m_pct,
         best_buy_month=best_month,
         seasonality=seasonality,
         score=score,

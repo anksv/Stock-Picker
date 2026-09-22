@@ -62,6 +62,30 @@ carry no guarantee about future performance.
   when the stock has traded on the market for less than 10 years (based on
   Yahoo Finance's first-trade date). This reflects listing age, not
   necessarily how old the company itself is.
+- **Competitive position** ("vs Sector (3m)" column / detail panel):
+  compares a stock's own 3-month price return to the average 3-month
+  return of other stocks/ETFs tagged with the same sector *within your
+  current sector/continent/asset-type filters* — not a fixed competitor
+  list. This is a real, computed number (not fabricated), but the peer
+  group narrows if you narrow the filters, and it's a price-performance
+  proxy for competitive pressure, not a real competitive/market-share
+  analysis. Not folded into the score.
+- **Recent news** (detail panel, loaded on click, not during a scan):
+  the stock's latest headlines from Yahoo Finance, each tagged with a
+  positive/negative/neutral dot from a **plain keyword count** — not real
+  sentiment analysis, NLP, or an LLM reading the articles. It can easily
+  misread a headline (e.g. "beats" about a competitor, an unrelated market
+  headline that mentions the ticker). Treat it as a pointer to read the
+  linked articles yourself, not a verdict. Not folded into the score.
+  News is fetched on demand per stock (not during a bulk scan, so it
+  doesn't slow down screening) and cached for 20 minutes.
+- **On geography and politics**: deliberately not included. There's no
+  reliable free, live data source for "how geography/local politics
+  impacts this stock" — faking that with hardcoded per-country notes would
+  risk being stale or wrong while looking authoritative, in a tool meant
+  to inform real decisions. Continent is shown as context; if you have
+  access to a real news/political-risk data API you'd like wired in
+  instead, that's a natural extension point in `app/news.py`.
 
 ## Setup
 

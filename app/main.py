@@ -3,14 +3,16 @@ from __future__ import annotations
 import threading
 import time
 import webbrowser
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app.news import get_news_signal
 from app.scoring import analyze_ticker
 from app.universe import (
     all_asset_types,
@@ -36,6 +38,32 @@ app.add_middleware(
 
 _CACHE: dict[str, tuple[float, list[dict]]] = {}
 _CACHE_TTL_SECONDS = 15 * 60
+
+
+def _attach_peer_comparison(results: list[dict]) -> None:
+    """How competitors can impact a stock, approximated as: 3-month price
+    return vs. the average of its same-sector peers within this result set
+    (i.e. peers matching the current sector/continent/asset-type filters,
+    not a fixed competitor list - narrowing the filters narrows the peer
+    group). Mutates each result dict in place.
+    """
+    by_sector: dict[str, list[dict]] = defaultdict(list)
+    for r in results:
+        by_sector[r["sector"]].append(r)
+
+    for group in by_sector.values():
+        for r in group:
+            peer_returns = [
+                p["return_3m_pct"] for p in group
+                if p is not r and p["return_3m_pct"] is not None
+            ]
+            if r["return_3m_pct"] is None or not peer_returns:
+                r["sector_peer_avg_return_3m_pct"] = None
+                r["vs_sector_return_pct"] = None
+                continue
+            peer_avg = sum(peer_returns) / len(peer_returns)
+            r["sector_peer_avg_return_3m_pct"] = round(peer_avg, 1)
+            r["vs_sector_return_pct"] = round(r["return_3m_pct"] - peer_avg, 1)
 
 
 @app.get("/api/sectors")
@@ -86,6 +114,7 @@ def get_screen(
                 result = future.result()
                 if result is not None:
                     results.append(result.to_dict())
+        _attach_peer_comparison(results)
         results.sort(key=lambda r: r["score"], reverse=True)
         _CACHE[cache_key] = (now, results)
 
@@ -96,6 +125,18 @@ def get_screen(
         filtered = [r for r in filtered if r["financially_stable"]]
     filtered.sort(key=lambda r: r["score"], reverse=True)
     return {"count": len(filtered), "results": filtered}
+
+
+@app.get("/api/news/{symbol}")
+def get_news(symbol: str):
+    """Fetched on demand (only when a stock's detail panel is opened), not
+    during a full scan - news is a per-symbol call that would otherwise
+    slow every screen down for a feature most results never get viewed.
+    """
+    symbol = symbol.upper()
+    if asset_type_for_ticker(symbol) is None:
+        raise HTTPException(status_code=404, detail="Unknown symbol")
+    return get_news_signal(symbol)
 
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

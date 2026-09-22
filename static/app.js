@@ -18,7 +18,7 @@ let sortKey = "score";
 let sortDir = -1;
 
 const MONTH_ORDER = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const DESCENDING_BY_DEFAULT = new Set(["price", "score", "change_pct_1d", "week52_position_pct", "rsi14", "business_quality_score"]);
+const DESCENDING_BY_DEFAULT = new Set(["price", "score", "change_pct_1d", "week52_position_pct", "rsi14", "business_quality_score", "vs_sector_return_pct"]);
 
 function signalClass(signal) {
   return signal.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z-]/g, "");
@@ -95,6 +95,7 @@ function renderTable() {
         ${r.is_new_listing ? '<span class="badge new" title="Listed on the market less than 10 years ago">New</span>' : ""}
       </td>
       <td><span class="badge ${qualityClass(r.business_quality_label)}" title="${r.business_quality_label} (${r.business_quality_score}/100)">${r.business_quality_label}</span></td>
+      <td class="${r.vs_sector_return_pct === null ? "" : r.vs_sector_return_pct >= 0 ? "pos" : "neg"}" title="3-month return vs. average of same-sector peers in your current results">${r.vs_sector_return_pct === null ? "-" : pct(r.vs_sector_return_pct)}</td>
       <td>${r.best_buy_month}</td>
     `;
     tr.addEventListener("click", () => showDetail(r));
@@ -162,12 +163,84 @@ function showDetail(r) {
       Based on up to 10 years of price history and the last ~4-5 fiscal years Yahoo Finance reports for free. A high score favors steady compounding, a consistent profit record, strong stable margins, and low reliance on new-product bets - i.e. a loyal customer base buying the same core products, rather than a company still experimenting to find one.
     </p>
 
+    <h3 style="margin-bottom: 6px;">Competitive Position</h3>
+    <p><strong>3-month return:</strong> ${pct(r.return_3m_pct)}</p>
+    <p><strong>${r.sector} sector peer average (3m):</strong> ${pct(r.sector_peer_avg_return_3m_pct)}</p>
+    <p>
+      <strong>vs. peers:</strong>
+      ${r.vs_sector_return_pct === null
+        ? "not enough peers or history to compare"
+        : `<span class="${r.vs_sector_return_pct >= 0 ? "pos" : "neg"}">${r.vs_sector_return_pct >= 0 ? "Outperforming" : "Underperforming"} by ${Math.abs(r.vs_sector_return_pct)}%</span>`}
+    </p>
+    <p style="color: var(--muted); font-size: 12px;">
+      "Peers" are other ${r.sector} ${r.asset_type === "ETF" ? "ETFs/stocks" : "stocks"} in your current filters, not a fixed competitor list - this is a real computed number, but the peer group shrinks if you narrow the sector/continent/asset-type filters.
+    </p>
+
+    <h3 style="margin-bottom: 6px;">Recent News</h3>
+    <div id="newsSection"><p style="color: var(--muted); font-size: 13px;">Loading recent news&hellip;</p></div>
+
     <p style="color: var(--muted); font-size: 12px; margin-top: 8px;">
       Seasonality below shows each month's average closing price relative to that year's mean, averaged over the last ~10 years. Negative = historically cheaper.
     </p>
     <div class="season-grid">${seasonCells}</div>
   `;
   detailPanel.classList.remove("hidden");
+  loadNews(r.symbol);
+}
+
+function newsSentimentClass(label) {
+  return "news-" + label.toLowerCase().replace(/\s+/g, "-");
+}
+
+async function loadNews(symbol) {
+  const container = document.getElementById("newsSection");
+  try {
+    const res = await fetch(`/api/news/${encodeURIComponent(symbol)}`);
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    const data = await res.json();
+    // The panel may have been closed/reopened on a different symbol while this was in flight.
+    const current = document.getElementById("newsSection");
+    if (!current) return;
+
+    if (!data.headlines.length) {
+      current.innerHTML = `<p style="color: var(--muted); font-size: 13px;">No recent news found for ${symbol}.</p>`;
+      return;
+    }
+
+    const items = data.headlines
+      .map((h) => {
+        const date = h.published_at ? new Date(h.published_at).toLocaleDateString() : "";
+        const title = h.url
+          ? `<a href="${h.url}" target="_blank" rel="noopener noreferrer">${h.title}</a>`
+          : h.title;
+        return `
+          <li class="news-item">
+            <span class="news-dot ${h.sentiment}"></span>
+            <div>
+              <div>${title}</div>
+              <div style="color: var(--muted); font-size: 12px;">${h.publisher ?? "Unknown source"}${date ? " &middot; " + date : ""}</div>
+            </div>
+          </li>
+        `;
+      })
+      .join("");
+
+    current.innerHTML = `
+      <p>
+        <strong>Headline tally:</strong>
+        <span class="badge ${newsSentimentClass(data.sentiment_label)}">${data.sentiment_label}</span>
+      </p>
+      <ul class="news-list">${items}</ul>
+      <p style="color: var(--muted); font-size: 12px;">
+        This is a plain positive/negative keyword count over the headlines below, not real sentiment analysis or NLP - it can easily misread a headline (e.g. "beats" about a competitor). Read the linked articles yourself before acting on anything here.
+      </p>
+    `;
+  } catch (err) {
+    const current = document.getElementById("newsSection");
+    if (current) {
+      current.innerHTML = `<p style="color: var(--muted); font-size: 13px;">Couldn't load news: ${err.message}</p>`;
+    }
+  }
 }
 
 closeDetail.addEventListener("click", () => detailPanel.classList.add("hidden"));

@@ -215,6 +215,51 @@ tbody tr:hover {
 .badge.stock-type { background: rgba(154,161,172,0.15); color: var(--muted); }
 .badge.etf-type { background: rgba(79,140,255,0.18); color: var(--accent); }
 
+.badge.news-positive { background: rgba(52,199,89,0.18); color: var(--green); }
+.badge.news-negative { background: rgba(255,92,92,0.15); color: var(--red); }
+.badge.news-neutral { background: rgba(154,161,172,0.15); color: var(--muted); }
+.badge.news-mixed { background: rgba(245,197,66,0.15); color: var(--yellow); }
+.badge.news-no-recent-news { background: rgba(154,161,172,0.15); color: var(--muted); }
+
+.news-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.news-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.news-item a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.news-item a:hover {
+  text-decoration: underline;
+  color: var(--accent);
+}
+
+.news-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 5px;
+  background: var(--muted);
+}
+
+.news-dot.positive { background: var(--green); }
+.news-dot.negative { background: var(--red); }
+.news-dot.neutral { background: var(--muted); }
+
 .pos { color: var(--green); }
 .neg { color: var(--red); }
 
