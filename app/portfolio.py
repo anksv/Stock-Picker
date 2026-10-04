@@ -22,14 +22,14 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
-import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
 import yfinance as yf
+
+from app.storage import atomic_write_json
 
 PORTFOLIOS_DIR = Path(__file__).resolve().parent.parent / "portfolios"
 
@@ -85,22 +85,6 @@ def _portfolio_path(name: str) -> Path:
     return PORTFOLIOS_DIR / f"{safe_name}.json"
 
 
-def _atomic_write_json(path: Path, data: dict) -> None:
-    """Writes via a temp file + os.replace so a crash or power loss mid-save
-    can never leave a half-written, corrupted portfolio file - the rename is
-    atomic, so readers always see either the old file or the fully-new one.
-    """
-    path.parent.mkdir(exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            f.write(json.dumps(data, indent=2))
-        os.replace(tmp_path, path)
-    except BaseException:
-        os.unlink(tmp_path)
-        raise
-
-
 def buy_portfolio(name: str, amount: float, tickers: list[dict], force: bool = False) -> dict:
     """Records a simulated purchase: splits `amount` across `tickers`
     (each {"symbol", "weight"}) proportional to weight, at each ticker's
@@ -151,7 +135,7 @@ def buy_portfolio(name: str, amount: float, tickers: list[dict], force: bool = F
         "skipped_symbols": skipped,
     }
 
-    _atomic_write_json(path, record)
+    atomic_write_json(path, record)
     return record
 
 

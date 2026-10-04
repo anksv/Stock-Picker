@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Stock Picker &middot; Markov Outlook</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header>
+  <div class="header-row">
+    <div>
+      <h1>Markov Outlook</h1>
+      <p class="subtitle">Next-week odds from each asset's own weekly price history &mdash; a research aid, not a forecast</p>
+    </div>
+    <nav class="top-nav">
+      <a href="index.html">Screener</a>
+      <a href="portfolio.html">Portfolio</a>
+      <a href="markov.html" class="active">Markov Outlook</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="tabs">
+    <button type="button" class="tab active" data-tab="universe">Pre-computed (stocks &amp; ETFs)</button>
+    <button type="button" class="tab" data-tab="search">Search any ticker</button>
+    <button type="button" class="tab" data-tab="learning">Learning log</button>
+  </div>
+
+  <section id="tab-universe">
+    <section class="controls">
+      <div class="field">
+        <label for="mkSector">Sector</label>
+        <select id="mkSector"><option value="All">All Sectors</option></select>
+      </div>
+      <div class="field">
+        <label for="mkContinent">Continent</label>
+        <select id="mkContinent"><option value="All">All Continents</option></select>
+      </div>
+      <div class="field">
+        <label for="mkAssetType">Asset Type</label>
+        <select id="mkAssetType"><option value="All">Stocks, ETFs &amp; Crypto</option></select>
+      </div>
+      <div class="field checkbox-field">
+        <label><input id="mkOnlyEdge" type="checkbox" /> Only show assets with a clear edge</label>
+      </div>
+      <button id="mkLoadBtn" type="button">Load</button>
+    </section>
+
+    <section id="mkStatus" class="status"></section>
+
+    <section class="results-wrap">
+      <table id="mkTable">
+        <thead>
+          <tr>
+            <th data-key="symbol">Symbol</th>
+            <th data-key="asset_type">Type</th>
+            <th data-key="sector">Sector</th>
+            <th data-key="current_state">Current State</th>
+            <th data-key="last_week_return_pct">Last Week</th>
+            <th data-key="p_up_next">P(Up) Next Week</th>
+            <th data-key="p_down_next">P(Down)</th>
+            <th data-key="base_up">Usual P(Up)</th>
+            <th data-key="net_edge_pct">Net Edge</th>
+            <th data-key="outlook_label">Outlook</th>
+            <th data-key="sample_size">Sample</th>
+          </tr>
+        </thead>
+        <tbody id="mkBody"></tbody>
+      </table>
+    </section>
+  </section>
+
+  <section id="tab-search" class="hidden">
+    <section class="controls">
+      <div class="field">
+        <label for="mkSymbol">Ticker symbol</label>
+        <input id="mkSymbol" type="text" placeholder="e.g. AAPL, VWCE.DE, ETH-USD" style="text-transform:uppercase; width:260px" />
+      </div>
+      <button id="mkSearchBtn" type="button">Analyze</button>
+    </section>
+    <section id="mkSearchStatus" class="status"></section>
+    <section id="mkSearchResult"></section>
+  </section>
+
+  <section id="tab-learning" class="hidden">
+    <section class="controls">
+      <button id="mkUpdateBtn" type="button">Check real prices now</button>
+      <span id="mkJournalMeta" class="muted"></span>
+    </section>
+    <section id="mkJournalStatus" class="status"></section>
+    <div id="mkJournal"></div>
+  </section>
+
+  <section class="markov-help">
+    <h3>How to read this</h3>
+    <p>
+      Each asset's completed weekly returns are bucketed into <strong>Down</strong>, <strong>Flat</strong> and <strong>Up</strong>
+      (Down/Up = more than half a standard deviation of <em>that asset's own</em> weekly moves, so a bond ETF and Bitcoin are each
+      judged against their own normal range). A Markov chain then counts how often each state was followed by each other state over
+      up to 10 years and applies that to the asset's current state.
+    </p>
+    <p>
+      <strong>Net Edge</strong> is how much better (or worse) the next-week Up-vs-Down odds are than the asset's usual odds, in percentage
+      points. The label is <strong>No Clear Edge</strong> unless that edge is at least 5 points <em>and</em> statistically significant
+      (~95%). Markets are close to memoryless, so most assets should read "No Clear Edge" most of the time &mdash; that is the honest
+      result, not a failure. With ~150 assets scanned, a few will look significant purely by chance, so treat any "Favorable" or
+      "Unfavorable" as a prompt to look closer, not a signal to act on. Also see the walk-forward backtest in each detail view.
+    </p>
+  </section>
+</main>
+
+<div id="mkDetailPanel" class="detail-panel hidden">
+  <div class="detail-inner">
+    <button id="mkCloseDetail" class="close-btn">&times;</button>
+    <div id="mkDetailBody"></div>
+  </div>
+</div>
+
+<script src="markov.js"></script>
+</body>
+</html>

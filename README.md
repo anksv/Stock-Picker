@@ -4,7 +4,8 @@ A personal research tool that screens a curated universe of stocks by
 industry sector and price range, scores them using simple technical
 indicators, and suggests a historically favorable month to buy. It also
 includes a paper-trade portfolio tracker: simulate investing a fixed amount
-across a basket of tickers, then check back later for real profit/loss.
+across a basket of tickers, then check back later for real profit/loss, and a
+Markov Outlook page with next-week odds per asset.
 Running it starts a local web server and opens the results in your
 browser.
 
@@ -165,6 +166,82 @@ live data and can take up to a couple of minutes (each ticker needs a
 10-year price-history call, a fundamentals call, an annual-financials call,
 and now a news call too); results are cached in-memory for 15 minutes. News
 itself is cached separately per symbol for 20 minutes.
+
+## Markov Outlook
+
+A third page (**Markov Outlook**, `markov.html`; engine in
+[`app/markov.py`](app/markov.py)) that estimates next-week odds for an asset
+from its own price history using a simple Markov chain. It has two modes:
+
+- **Pre-computed**: every stock/ETF/crypto in the universe, filterable by
+  sector/continent/asset type and sortable. Cached for an hour (it only
+  changes once a week) and loads in a few seconds since it needs just the
+  price history.
+- **Search any ticker**: type any symbol Yahoo Finance knows (including ones
+  outside the universe, e.g. `VWCE.DE`) and get the same analysis.
+
+**How it works**: completed weekly returns (up to ~10 years) are bucketed
+into Down / Flat / Up, where Down/Up means beyond half a standard deviation
+of *that asset's own* weekly moves. Counting how often each state was
+followed by each state gives a 3x3 transition matrix; the asset's current
+state picks out the row that gives next-week probabilities. The in-progress
+week is excluded so it can't distort the current state.
+
+**Why it's deliberately skeptical**: markets are close to memoryless, so
+most assets' conditional odds sit near their usual base rate. Each result
+therefore includes the *net edge* over the base rate, a significance test
+(|z| >= 1.96), and a walk-forward backtest (matrix fitted on the first 60%
+of weeks only, then used to call the direction of every later week,
+compared to always guessing "up"). The label is **No Clear Edge** unless the
+edge is >= 5 percentage points *and* significant. Scanning ~150 assets
+produces a handful of "Favorable"/"Unfavorable" results by chance alone, and
+in testing the backtest tied the always-up baseline even for assets
+flagged Favorable - treat the page as a way to see the odds, not as a buy
+signal. It is not folded into the Screener's score.
+
+### Learning log (persistent memory)
+
+The Markov Outlook page's third tab keeps a **prediction journal**
+([`app/markov_journal.py`](app/markov_journal.py), saved to
+`markov_journal/journal.json` - gitignored, crash-safe atomic writes, survives
+restarts). The chain itself already refits from full history on every run, so
+the memory that matters is a record of what it *said* versus what the market
+*did*:
+
+1. **Log**: once per week per tracked asset (the whole universe plus any
+   ticker you've searched), the model's call is saved - state, Up/Flat/Down
+   odds, predicted direction, label. A week is only logged if the model runs
+   by Monday after that week ends; logging later would let part of the "future"
+   week leak into a call that's supposed to come first.
+2. **Score**: after the target week finishes, the call is compared with the
+   real price move (start and end close come from a single price fetch, so
+   dividend/split adjustments can't distort the return). Unfinished weeks are
+   never scored.
+3. **Learn**: the tab shows direction accuracy vs. always-guessing-up, a
+   probability-skill score vs. each asset's usual odds, calibration ("when it
+   said Up 40%+, how often did Up happen?"), whether Favorable/Unfavorable
+   flags beat the usual rate, the biggest wrong calls (e.g. "called Up, it
+   fell 7.9%"), and auto-written lessons. Once there are 200+ scored calls
+   across 3+ distinct weeks, a **learning weight** (0-1, the pooled slope of
+   outcomes against the model's deviation from usual odds) pulls the displayed
+   odds toward usual by however much live results *don't* support them. If the
+   model turns out to be noise the weight heads to 0 and the page says so; it
+   only trusts the model more if the evidence earns it.
+4. **Notes**: add your own notes on the same tab; they persist too.
+
+It checks automatically ~20 seconds after the server starts and every 12
+hours while it runs, or via the **Check real prices now** button. For a daily
+job without the server running (e.g. cron):
+
+```bash
+python -m app.markov_journal update   # score finished weeks, log new calls
+python -m app.markov_journal report   # print the scoreboard and lessons
+```
+
+Be realistic about speed: each asset gets one prediction a week, so the
+journal needs several weeks before it says anything. The pooled view across
+the universe fills faster, but all assets move with the market in any given
+week, which is why learning waits for multiple distinct weeks.
 
 ## Customizing the universe
 

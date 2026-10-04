@@ -127,7 +127,7 @@ select, input {
   min-width: 120px;
 }
 
-button#scanBtn, button#buyBtn {
+button#scanBtn, button#buyBtn, button#mkLoadBtn, button#mkSearchBtn, button#mkUpdateBtn, button#mkNoteBtn {
   background: var(--accent);
   color: white;
   border: none;
@@ -138,8 +138,8 @@ button#scanBtn, button#buyBtn {
   cursor: pointer;
 }
 
-button#scanBtn:hover, button#buyBtn:hover { opacity: 0.9; }
-button#scanBtn:disabled, button#buyBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+button#scanBtn:hover, button#buyBtn:hover, button#mkLoadBtn:hover, button#mkSearchBtn:hover, button#mkUpdateBtn:hover, button#mkNoteBtn:hover { opacity: 0.9; }
+button#scanBtn:disabled, button#buyBtn:disabled, button#mkLoadBtn:disabled, button#mkSearchBtn:disabled, button#mkUpdateBtn:disabled, button#mkNoteBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 button#addTickerBtn {
   background: none;
@@ -466,3 +466,126 @@ footer.note {
   font-size: 12px;
   padding: 0 32px 32px;
 }
+
+
+/* ---- Markov Outlook page ---- */
+section.hidden { display: none; }
+.muted { color: var(--muted); font-size: 12px; }
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 8px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+
+.badge.markov-favorable { background: rgba(52,199,89,0.18); color: var(--green); }
+.badge.markov-unfavorable { background: rgba(255,92,92,0.15); color: var(--red); }
+.badge.markov-no-clear-edge,
+.badge.markov-insufficient-history { background: rgba(154,161,172,0.15); color: var(--muted); }
+.badge.state-up { background: rgba(52,199,89,0.18); color: var(--green); }
+.badge.state-down { background: rgba(255,92,92,0.15); color: var(--red); }
+.badge.state-flat { background: rgba(245,197,66,0.15); color: var(--yellow); }
+
+.prob-row {
+  display: grid;
+  grid-template-columns: 44px 1fr 190px;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.prob-track {
+  position: relative;
+  height: 10px;
+  background: #0f1115;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.prob-fill { height: 100%; border-radius: 999px; }
+.fill-up { background: var(--green); }
+.fill-flat { background: var(--yellow); }
+.fill-down { background: var(--red); }
+
+.prob-base {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--text);
+  opacity: 0.8;
+}
+
+.prob-usual { color: var(--muted); font-size: 11px; }
+
+.matrix {
+  width: auto;
+  border-collapse: separate;
+  border-spacing: 4px;
+  font-size: 13px;
+}
+
+.matrix th { text-align: left; color: var(--muted); font-weight: 600; padding: 4px 8px; background: none; border: none; position: static; cursor: default; }
+.matrix td {
+  text-align: center;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(79,140,255, calc(var(--heat, 0) * 0.55));
+}
+.matrix td.muted { background: none; border: none; }
+.matrix td.matrix-current { outline: 1px solid var(--text); }
+
+.markov-help {
+  margin-top: 32px;
+  max-width: 820px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.markov-help h3 { color: var(--text); font-size: 14px; margin-bottom: 6px; }
+
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.stat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.stat .label { color: var(--muted); font-size: 12px; }
+.stat .value { font-size: 22px; font-weight: 700; margin: 2px 0; }
+.stat .sub { color: var(--muted); font-size: 12px; }
+
+.lessons { list-style: none; padding: 0; margin: 8px 0 20px; display: flex; flex-direction: column; gap: 8px; }
+.lesson { border-left: 3px solid var(--border); padding: 6px 12px; font-size: 13px; background: var(--panel); border-radius: 0 8px 8px 0; }
+.lesson.good { border-left-color: var(--green); }
+.lesson.warn { border-left-color: var(--yellow); }
+.lesson.miss { border-left-color: var(--red); }
+.lesson.info { border-left-color: var(--accent); }
+
+.journal-block { margin-bottom: 24px; }
+.journal-block h3 { margin: 0 0 6px; font-size: 15px; }
+.journal-block table { max-width: 760px; }
+
+.note-form { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0 12px; max-width: 760px; }
+.note-form textarea { flex: 1; min-height: 56px; background: #0f1115; color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font: inherit; font-size: 13px; resize: vertical; }
+.note-item { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; max-width: 760px; font-size: 13px; display: flex; justify-content: space-between; gap: 12px; }
+.note-item button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; }
+.note-item button:hover { color: var(--red); }
+.note-text { white-space: pre-wrap; }
+
+.live-record { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+.live-row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; border-bottom: 1px solid var(--border); }
+.live-row:last-child { border-bottom: none; }
