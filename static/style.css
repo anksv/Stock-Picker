@@ -609,3 +609,8 @@ section.hidden { display: none; }
 .ccy-buttons button:hover { color: var(--text); }
 .ccy-buttons button.active { background: var(--accent); color: #fff; }
 .ccy-rate { font-size: 11px; }
+
+/* ---- holding-horizon tags next to Buy signals ---- */
+.badge.horizon { margin-left: 4px; white-space: nowrap; }
+.badge.horizon-long { background: rgba(45,212,191,0.16); color: #2dd4bf; }
+.badge.horizon-short { background: rgba(192,132,252,0.16); color: #c084fc; }

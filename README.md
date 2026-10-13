@@ -106,6 +106,25 @@ carry no guarantee about future performance.
   analyst coverage (ETFs, crypto, small/foreign names) is scored on
   whatever of the three is available, or shown "No Valuation Data" if none
   are — never penalized just for missing data.
+- **Holding horizon** (Long-term / Short-term tag next to Buy and Strong Buy
+  in the Signal column, and a "Holding horizon" section in the detail panel):
+  tells you how long a buy is meant to be held, so you know how early or late
+  to expect to sell. **Long-term** means the buy is backed by a durable asset
+  (Quality of at least 60) whose Valuation isn't "Overvalued" - structure,
+  not just a price move, so it can be held through swings. **Short-term**
+  means it leans on momentum instead: Quality under 60, thin data, an
+  "Overvalued" price, or crypto (which has no earnings or balance sheet, so
+  there's nothing but price history to build a long-term case on - it is
+  never tagged long-term, however high its score). Hold, Avoid, Overbought -
+  Wait and Short-Term Only get no tag, since they already say what to do.
+  The detail panel adds the reasons and **what to watch before selling**,
+  using this asset's own numbers: for a short-term buy, a close below the
+  50-day average, RSI passing 70, or the Signal dropping to Hold, checked
+  weekly; for a long-term buy, Quality weakening, Valuation turning
+  Overvalued, or a close below the 200-day average, reviewed quarterly (ETFs:
+  a couple of times a year). It's a rule-based prompt to review, not a sell
+  order and not financial advice - and because this universe is mostly large,
+  durable companies, most buys come out long-term (about 9 in 10 today).
 - **Business quality** ("Business Quality" column / detail panel section):
   answers "has this been a durable, loyal-customer business, or one still
   experimenting?" using what Yahoo Finance exposes for free — up to 10

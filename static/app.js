@@ -130,6 +130,7 @@ function renderTable() {
       <td>${r.score}</td>
       <td>
         <span class="badge ${signalClass(r.signal)}">${r.signal}</span>
+        ${horizonBadge(r)}
         ${r.is_new_listing ? '<span class="badge new" title="Listed on the market less than 10 years ago">New</span>' : ""}
       </td>
       <td><span class="badge ${qualityClass(r.business_quality_label)}" title="${r.business_quality_label} (${r.business_quality_score}/100)">${r.business_quality_label}</span></td>
@@ -187,6 +188,48 @@ function renderEtfChecklist(r) {
   `;
 }
 
+const HORIZON_TIPS = {
+  "Long-term": "Backed by a durable asset (Quality 60+) whose price isn't stretched, so it is meant to be held through swings and reviewed periodically. Click the row for what to watch.",
+  "Short-term": "Leans on momentum rather than a durable, reasonably priced asset (or is crypto, which has no earnings to anchor a long-term case), so watch it closely and expect to exit sooner. Click the row for what to watch.",
+};
+
+function horizonBadge(r) {
+  if (!r.horizon) return "";
+  const cls = r.horizon === "Long-term" ? "horizon-long" : "horizon-short";
+  return `<span class="badge horizon ${cls}" title="${esc(HORIZON_TIPS[r.horizon])}">${esc(r.horizon)}</span>`;
+}
+
+// What to watch before selling. The levels come from this asset's own numbers;
+// the horizon and its reasons come from the server.
+function renderHorizon(r) {
+  if (!r.horizon) return "";
+  const long = r.horizon === "Long-term";
+  const reasons = r.horizon_reasons.map((t) => `<li class="lesson info">${esc(t)}</li>`).join("");
+
+  const triggers = [];
+  if (long) {
+    triggers.push(r.etf
+      ? "The ETF checks worsen: cost rises, the fund shrinks toward the 100M minimum, or it becomes concentrated."
+      : `Quality weakens from ${esc(r.business_quality_label)} (${r.business_quality_score}/100).`);
+    if (r.valuation_label !== "No Valuation Data") triggers.push(`Valuation turns Overvalued (now ${esc(r.valuation_label)}).`);
+    if (r.sma200 !== null) triggers.push(`The price closes below its 200-day average (${money(r, r.sma200)}) - the long-term trend has broken.`);
+    triggers.push(r.etf ? "Review a couple of times a year; a long-term fund rarely needs more." : "Review quarterly, for example after each earnings report.");
+  } else {
+    if (r.sma50 !== null) triggers.push(`The price closes below its 50-day average (${money(r, r.sma50)}) - the short-term trend has turned.`);
+    triggers.push(`RSI(14) climbs above 70 (now ${r.rsi14 ?? "n/a"}) - the move may be overextended and the Signal switches to Overbought - Wait.`);
+    triggers.push("The Signal falls to Hold or lower.");
+    triggers.push("Check weekly - this is a tactical position, not a set-and-forget one.");
+  }
+
+  return `
+    <h3 style="margin-bottom: 6px;">Holding horizon: ${horizonBadge(r)}</h3>
+    <ul class="lessons" style="margin: 6px 0 8px">${reasons}</ul>
+    <p style="margin: 4px 0"><strong>When to reconsider selling</strong></p>
+    <ul style="margin: 2px 0 6px; padding-left: 18px; font-size: 13px">${triggers.map((t) => `<li>${t}</li>`).join("")}</ul>
+    <p class="muted">A rule-based prompt to review, built from the Quality, Valuation and trend figures on this page - not a sell order and not financial advice.</p>
+  `;
+}
+
 function showDetail(r) {
   detailTitle.textContent = r.name && r.name !== r.symbol ? `${r.name} (${r.symbol})` : r.symbol;
   const seasonCells = r.seasonality
@@ -201,9 +244,11 @@ function showDetail(r) {
     <p><strong>Price:</strong> ${money(r, r.price)} (${r.change_pct_1d >= 0 ? "+" : ""}${r.change_pct_1d}% today)</p>
     <p>
       <strong>Signal:</strong> <span class="badge ${signalClass(r.signal)}">${r.signal}</span>
+      ${horizonBadge(r)}
       ${r.is_new_listing ? '<span class="badge new">New</span>' : ""}
       &nbsp; <strong>Score:</strong> ${r.score}/100
     </p>
+    ${renderHorizon(r)}
     <p><strong>SMA 50 / 200:</strong> ${r.sma50 ?? "-"} / ${r.sma200 ?? "-"}</p>
     <p><strong>RSI (14d):</strong> ${r.rsi14 ?? "-"}</p>
     <p><strong>52-week range:</strong> ${money(r, r.week52_low)} &ndash; ${money(r, r.week52_high)} (currently at ${r.week52_position_pct}% of range)</p>

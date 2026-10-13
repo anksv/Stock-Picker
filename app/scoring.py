@@ -89,6 +89,8 @@ class StockResult:
     news_headlines: list
     score: int
     signal: str
+    horizon: str | None
+    horizon_reasons: list
 
     def to_dict(self):
         return asdict(self)
@@ -513,6 +515,62 @@ def _valuation(info: dict) -> dict:
     }
 
 
+# A buy is only called long-term when the asset itself is strong enough to
+# hold through swings. 60 is the same line the quality labels use between
+# "Mixed" and "Steady" / "Fair" and "Solid".
+LONG_TERM_MIN_QUALITY = 60
+
+
+def _horizon(signal: str, asset_type: str, business_quality: dict, valuation: dict) -> dict:
+    """How long a Buy/Strong Buy is meant to be held, so you know how early or
+    late to expect to sell.
+
+    Long-term: the buy is backed by a durable asset (Quality at least 60) that
+    isn't expensive (Valuation not "Overvalued") - structure, not just a price
+    move, so it can be held through swings.
+    Short-term: everything else - the buy leans on momentum/technicals rather
+    than a durable, reasonably priced asset, so it needs watching and a
+    quicker exit. Crypto is always short-term: with no earnings or balance
+    sheet there is nothing but price history to base a long-term case on.
+
+    Only Buy / Strong Buy get a horizon; Hold, Avoid, Overbought - Wait and
+    Short-Term Only already say what to do (or not do).
+    """
+    none = {"horizon": None, "horizon_reasons": []}
+    if signal not in ("Strong Buy", "Buy"):
+        return none
+
+    quality_score = business_quality["business_quality_score"]
+    quality_label = business_quality["business_quality_label"]
+    valuation_label = valuation["valuation_label"]
+
+    if asset_type == "Crypto":
+        return {"horizon": "Short-term", "horizon_reasons": [
+            "Crypto has no earnings or balance sheet to anchor a long-term case, so this buy rests on price momentum alone.",
+        ]}
+    if quality_label in ("Insufficient History", "Limited Data"):
+        return {"horizon": "Short-term", "horizon_reasons": [
+            f"Quality is '{quality_label}' - not enough data to back a long hold, so this buy leans on momentum.",
+        ]}
+    if quality_score < LONG_TERM_MIN_QUALITY:
+        return {"horizon": "Short-term", "horizon_reasons": [
+            f"Quality is {quality_label} ({quality_score}/100), below the {LONG_TERM_MIN_QUALITY} needed to back a long hold - this buy leans on momentum.",
+        ]}
+    if valuation_label == "Overvalued":
+        return {"horizon": "Short-term", "horizon_reasons": [
+            f"Quality is strong ({quality_label}, {quality_score}/100) but the price looks expensive (Overvalued), so the buy rests more on momentum than on value.",
+        ]}
+
+    reasons = [f"Quality is {quality_label} ({quality_score}/100) - durable enough to hold through swings."]
+    if valuation_label == "No Valuation Data":
+        reasons.append("No valuation data to check the price against, so judged on quality alone.")
+    elif valuation_label == "Fully Valued":
+        reasons.append("Valuation is Fully Valued - not cheap, but not expensive enough to rule out a long hold.")
+    else:
+        reasons.append(f"Valuation is {valuation_label}, so the price isn't stretched.")
+    return {"horizon": "Long-term", "horizon_reasons": reasons}
+
+
 def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "Stock") -> StockResult | None:
     ticker = yf.Ticker(symbol)
     try:
@@ -596,6 +654,8 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
         score = min(score, 45)
         signal = "Short-Term Only"
 
+    horizon = _horizon(signal, asset_type, business_quality, valuation)
+
     return StockResult(
         symbol=symbol,
         name=name,
@@ -622,6 +682,7 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
         score=score,
         signal=signal,
         etf=etf,
+        **horizon,
         **fundamentals,
         **listing_age,
         **business_quality,
