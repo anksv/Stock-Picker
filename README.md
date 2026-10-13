@@ -132,7 +132,8 @@ carry no guarantee about future performance.
   when the stock has traded on the market for less than 10 years (based on
   Yahoo Finance's first-trade date). This reflects listing age, not
   necessarily how old the company itself is.
-- **Competitive position** ("vs Sector (3m)" column / detail panel):
+- **Competitive position** (the "Competitive Position" section of the detail
+  panel - click a row; it is no longer a column in the results table):
   compares an asset's own 3-month price return to the average 3-month
   return of other assets tagged with the same sector *within your current
   sector/continent/asset-type filters* — not a fixed competitor list. This

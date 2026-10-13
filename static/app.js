@@ -19,7 +19,7 @@ let sortKey = "score";
 let sortDir = -1;
 
 const MONTH_ORDER = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const DESCENDING_BY_DEFAULT = new Set(["price", "score", "week52_position_pct", "rsi14", "business_quality_score", "valuation_score", "vs_sector_return_pct"]);
+const DESCENDING_BY_DEFAULT = new Set(["price", "score", "week52_position_pct", "rsi14", "business_quality_score", "valuation_score"]);
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -134,7 +134,6 @@ function renderTable() {
       </td>
       <td><span class="badge ${qualityClass(r.business_quality_label)}" title="${r.business_quality_label} (${r.business_quality_score}/100)">${r.business_quality_label}</span></td>
       <td><span class="badge ${valuationClass(r.valuation_label)}" title="${r.valuation_label} (${r.valuation_score}/100)">${r.valuation_label}</span></td>
-      <td class="${r.vs_sector_return_pct === null ? "" : r.vs_sector_return_pct >= 0 ? "pos" : "neg"}" title="3-month return vs. average of same-sector peers in your current results">${r.vs_sector_return_pct === null ? "-" : pct(r.vs_sector_return_pct)}</td>
       <td>${r.best_buy_month}</td>
     `;
     tr.addEventListener("click", () => showDetail(r));
