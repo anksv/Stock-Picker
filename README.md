@@ -29,6 +29,8 @@ carry no guarantee about future performance.
 - **Screening**: filter by sector, continent, asset type
   (stocks/ETFs/crypto/any combination), min/max price, recent growth, and
   financial stability.
+  Hover any column header in the results table for a definition of that
+  column (what it measures and how it's calculated).
 - **ETFs and crypto**: neither is a company, so the revenue/earnings/
   margin/debt fundamentals and growth/stability filters don't apply to them
   (they'll never match "Growing" or "Financially stable" — that's expected,

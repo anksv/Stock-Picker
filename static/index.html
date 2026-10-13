@@ -70,20 +70,20 @@
     <table id="resultsTable">
       <thead>
         <tr>
-          <th data-key="symbol">Symbol</th>
-          <th data-key="asset_type">Type</th>
-          <th data-key="sector">Sector</th>
-          <th data-key="continent">Continent</th>
-          <th data-key="price">Price</th>
-          <th data-key="change_pct_1d">1D %</th>
-          <th data-key="rsi14">RSI(14)</th>
-          <th data-key="week52_position_pct">52w Range %</th>
-          <th data-key="score">Score</th>
-          <th data-key="signal">Signal</th>
-          <th data-key="business_quality_score" title="Stocks/crypto: long-term business quality. ETFs: cost, size, diversification and product-risk checklist.">Quality</th>
-          <th data-key="valuation_score">Valuation</th>
-          <th data-key="vs_sector_return_pct">vs Sector (3m)</th>
-          <th data-key="best_buy_month">Best Month</th>
+          <th data-key="symbol" title="Ticker symbol. Hover a symbol in the table to see the company or fund name.">Symbol</th>
+          <th data-key="asset_type" title="Stock, ETF (exchange-traded fund) or Crypto.">Type</th>
+          <th data-key="sector" title="Industry group. ETFs that don't belong to one industry use Broad Market, Fixed Income or Commodities; crypto is Cryptocurrency.">Sector</th>
+          <th data-key="continent" title="Where the asset is listed or headquartered. Crypto trades 24/7 with no single venue, so it is Global.">Continent</th>
+          <th data-key="price" title="Latest closing price, shown in the currency selected at the top. Hover a price to see the exchange it is listed on.">Price</th>
+          <th data-key="change_pct_1d" title="One-day change: the latest closing price compared with the previous trading day's close, in percent.">1D %</th>
+          <th data-key="rsi14" title="Relative Strength Index over the last 14 days, from 0 to 100. Above 70 means the price has risen fast and may be overbought (a pullback is more likely); below 30 means oversold. Above 70 the Signal shows Overbought - Wait.">RSI(14)</th>
+          <th data-key="week52_position_pct" title="Where today's price sits between the lowest (0%) and highest (100%) closing price of roughly the last year. Near 100% = close to its 52-week high; near 0% = close to its low.">52w Range %</th>
+          <th data-key="score" title="Overall 0-100 rating. It combines the price trend (50- and 200-day averages), RSI, position in the 52-week range, recent growth and financial stability, Quality (up to &plusmn;20), Valuation (up to &plusmn;15) and a small news nudge (&plusmn;6). Higher is better. A research heuristic, not advice.">Score</th>
+          <th data-key="signal" title="Label taken from the Score: 70+ Strong Buy, 55+ Buy, 40+ Hold, below 40 Avoid. Replaced by Overbought - Wait when RSI is above 70, and by Short-Term Only for leveraged/inverse ETFs. A blue New badge means listed for under 10 years.">Signal</th>
+          <th data-key="business_quality_score" title="Stocks: how durable the business has been over up to 10 years (price growth, steadiness, profitability, margins, R&amp;D). Crypto: price growth and steadiness. ETFs: a checklist of cost (TER), fund size, diversification and product risk.">Quality</th>
+          <th data-key="valuation_score" title="Whether the price looks cheap or expensive, from the P/E ratio, PEG ratio and analyst consensus: Undervalued, Reasonably Valued, Fully Valued or Overvalued. No Valuation Data when none are available (for example no earnings, or crypto).">Valuation</th>
+          <th data-key="vs_sector_return_pct" title="This asset's return over the last 3 months minus the average 3-month return of the other assets in the same sector within your current results. Positive = outperforming its sector peers.">vs Sector (3m)</th>
+          <th data-key="best_buy_month" title="The calendar month that has historically been the cheapest time to buy: the month whose prices were lowest relative to each year's average, over up to 10 years.">Best Month</th>
         </tr>
       </thead>
       <tbody id="resultsBody"></tbody>
