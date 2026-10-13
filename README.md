@@ -200,6 +200,12 @@ default browser automatically. Pick a sector, continent, asset type, and
 price range and click **Scan**. Click any row for a detailed breakdown,
 including the company name and the month-by-month seasonality chart.
 
+Static files (the HTML/JS/CSS) are served with `Cache-Control: no-cache`, so
+the browser re-checks them with the server on every load (an unchanged file
+is just a tiny 304) and a normal reload always picks up an update. If a page
+ever looks half-updated after you pull new code, restart the server and
+hard-refresh once (Cmd+Shift+R) to flush copies cached before this was in place.
+
 The first scan for a given sector/continent/asset-type combination fetches
 live data and can take up to a couple of minutes (each ticker needs a
 10-year price-history call, a fundamentals call, an annual-financials call,

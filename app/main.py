@@ -332,7 +332,23 @@ def remove_portfolio(name: str):
     return {"deleted": name}
 
 
-app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
+class RevalidatingStaticFiles(StaticFiles):
+    """Static files with `Cache-Control: no-cache`, which means "re-check with
+    the server before reusing your copy" (not "don't cache"). Without any
+    Cache-Control header, browsers guess how long a file can be reused from its
+    age, so after an update they can keep serving an old app.js/style.css next
+    to a new index.html - a half-updated page. With this, an unchanged file
+    costs one tiny 304 response and a changed one is picked up on a normal
+    reload.
+    """
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount("/", RevalidatingStaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 
 
 def _open_browser(url: str, delay: float = 1.2):
