@@ -19,7 +19,7 @@ let sortKey = "score";
 let sortDir = -1;
 
 const MONTH_ORDER = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const DESCENDING_BY_DEFAULT = new Set(["price", "score", "change_pct_1d", "week52_position_pct", "rsi14", "business_quality_score", "valuation_score", "vs_sector_return_pct"]);
+const DESCENDING_BY_DEFAULT = new Set(["price", "score", "week52_position_pct", "rsi14", "business_quality_score", "valuation_score", "vs_sector_return_pct"]);
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -119,14 +119,12 @@ function renderTable() {
   resultsBody.innerHTML = "";
   for (const r of rows) {
     const tr = document.createElement("tr");
-    const changeClass = r.change_pct_1d >= 0 ? "pos" : "neg";
     tr.innerHTML = `
       <td class="symbol-cell" title="${r.name}">${r.symbol}</td>
       <td><span class="badge ${assetTypeClass(r.asset_type)}">${r.asset_type}</span></td>
       <td>${r.sector}</td>
       <td>${r.continent}</td>
       <td title="${EXCHANGE_NAMES[r.exchange] ?? r.exchange ?? ""}">${money(r, r.price)}</td>
-      <td class="${changeClass}">${r.change_pct_1d.toFixed(2)}%</td>
       <td>${r.rsi14 ?? "-"}</td>
       <td>${r.week52_position_pct}%</td>
       <td>${r.score}</td>
