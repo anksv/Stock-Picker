@@ -190,7 +190,7 @@ function renderStatus(status) {
     </p>
     <table class="portfolio-positions">
       <thead>
-        <tr><th>Symbol</th><th>Shares</th><th>Buy Price</th><th>Now</th><th>Value</th><th>P/L</th><th>P/L %</th></tr>
+        <tr><th title="Ticker symbol of the holding.">Symbol</th><th title="Fractional shares bought: this holding's slice of the amount (converted into the asset's own currency if needed) divided by its price on the day of purchase.">Shares</th><th title="Price per share when the portfolio was bought, in the asset's own currency, then shown in the currency selected at the top.">Buy Price</th><th title="Latest closing price per share, in the asset's own currency, then shown in the currency selected at the top.">Now</th><th title="What the holding is worth now: shares times the current price, in the portfolio's currency, then shown in the currency selected at the top.">Value</th><th title="Profit or loss on this holding: its current Value minus the amount originally put into it. If the asset is priced in a different currency from the portfolio, currency movement since purchase is included.">P/L</th><th title="Profit or loss as a percentage of the amount originally put into this holding. It does not change with the display currency.">P/L %</th></tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>

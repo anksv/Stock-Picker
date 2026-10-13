@@ -102,7 +102,7 @@ function renderDetail(r) {
       const cells = row
         .map((v, j) => `<td class="${i === current ? "matrix-current" : ""}" style="--heat:${(v / 100).toFixed(2)}" title="${r.transition_counts[i][j]} observed transitions">${v.toFixed(1)}%</td>`)
         .join("");
-      return `<tr><th>${STATES[i]}${i === current ? " (now)" : ""}</th>${cells}<td class="muted">n=${r.transition_counts[i].reduce((a, b) => a + b, 0)}</td></tr>`;
+      return `<tr><th title="This week's state. Read across: how the following week turned out, historically.">${STATES[i]}${i === current ? " (now)" : ""}</th>${cells}<td class="muted">n=${r.transition_counts[i].reduce((a, b) => a + b, 0)}</td></tr>`;
     })
     .join("");
 
@@ -140,7 +140,7 @@ function renderDetail(r) {
 
     <h3>Transition matrix <span class="muted" style="font-size:12px; font-weight:400">(row = this week's state, column = next week's state)</span></h3>
     <table class="matrix">
-      <thead><tr><th></th>${STATES.map((s) => `<th>&rarr; ${s}</th>`).join("")}<th></th></tr></thead>
+      <thead><tr><th></th>${STATES.map((s) => `<th title="Chance that next week is ${s}, given the state in each row (this week).">&rarr; ${s}</th>`).join("")}<th title="How many past weeks were in each row's state, which is what each row's percentages are based on."></th></tr></thead>
       <tbody>${matrixRows}</tbody>
     </table>
 
@@ -309,8 +309,9 @@ function statCard(label, value, sub) {
   return `<div class="stat"><div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
 }
 
+// Each header is [label, hover definition].
 function simpleTable(headers, rows) {
-  return `<table class="portfolio-positions"><thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  return `<table class="portfolio-positions"><thead><tr>${headers.map(([label, tip]) => `<th title="${esc(tip)}">${label}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }
 
 function renderJournal(d) {
@@ -331,16 +332,38 @@ function renderJournal(d) {
   const lessons = d.lessons.map((n) => `<li class="lesson ${n.kind}">${esc(n.text)}</li>`).join("");
 
   const labelTable = b.labels.length
-    ? simpleTable(["Label", "Calls", "Direction right", "Hit rate", "Usual rate"], b.labels.map((x) => [esc(x.label), x.n, `${x.direction_accuracy_pct}%`, x.hit_rate_pct === undefined ? "-" : `${x.hit_rate_pct}%`, x.usual_rate_pct === undefined ? "-" : `${x.usual_rate_pct}%`]))
+    ? simpleTable([
+      ["Label", "The outlook label the model gave when it made the call."],
+      ["Calls", "How many scored predictions carried this label."],
+      ["Direction right", "Share of those calls where the leaning direction (Up if P(Up) was at least P(Down)) matched whether the asset actually rose that week."],
+      ["Hit rate", "For Favorable: how often the week really was an Up week. For Unfavorable: how often it really was a Down week. Not applicable to No Clear Edge."],
+      ["Usual rate", "How often that same outcome (Up for Favorable, Down for Unfavorable) happens for these assets in general. A flag only adds value if its Hit rate beats this."],
+    ], b.labels.map((x) => [esc(x.label), x.n, `${x.direction_accuracy_pct}%`, x.hit_rate_pct === undefined ? "-" : `${x.hit_rate_pct}%`, x.usual_rate_pct === undefined ? "-" : `${x.usual_rate_pct}%`]))
     : `<p class="muted">Nothing scored yet.</p>`;
   const calibTable = (rows) => rows.length
-    ? simpleTable(["Model said", "Cases", "Avg said", "Actually happened"], rows.map((x) => [x.range, x.n, `${x.predicted_pct}%`, `${x.actual_pct}%`]))
+    ? simpleTable([
+      ["Model said", "The range of probability the model gave for this outcome (Up in one table, Down in the other)."],
+      ["Cases", "How many scored predictions fell in this range."],
+      ["Avg said", "The average probability the model actually stated across those cases."],
+      ["Actually happened", "How often the outcome really occurred in those cases. A well-calibrated model has this close to Avg said; if it is lower, the model was over-confident."],
+    ], rows.map((x) => [x.range, x.n, `${x.predicted_pct}%`, `${x.actual_pct}%`]))
     : `<p class="muted">Nothing scored yet.</p>`;
   const weeklyTable = b.weekly.length
-    ? simpleTable(["Week ending", "Calls", "Direction right", "Always-up", "Avg asset move"], b.weekly.map((x) => [esc(x.week), x.n, `${x.accuracy_pct}%`, `${x.baseline_pct}%`, pct(x.avg_return_pct, 2)]))
+    ? simpleTable([
+      ["Week ending", "The Friday on which the predicted week finished."],
+      ["Calls", "How many assets were predicted and scored for that week."],
+      ["Direction right", "Share of those calls where the leaning direction matched whether the asset rose that week."],
+      ["Always-up", "Share of those assets that actually rose that week, which is how often simply guessing up for everything would have been right. The model should beat this to add value."],
+      ["Avg asset move", "Average return of all the scored assets that week, showing whether it was a broadly rising or falling market."],
+    ], b.weekly.map((x) => [esc(x.week), x.n, `${x.accuracy_pct}%`, `${x.baseline_pct}%`, pct(x.avg_return_pct, 2)]))
     : `<p class="muted">Nothing scored yet.</p>`;
   const missTable = d.misses.length
-    ? simpleTable(["Asset", "Week ending", "Model said", "What happened"], d.misses.map((p) => [`<strong>${esc(p.symbol)}</strong>`, esc(p.target_week_ending), `${esc(p.predicted_direction)} (Up ${p.p_up}% / Down ${p.p_down}%)`, `<span class="${p.actual_return_pct >= 0 ? "pos" : "neg"}">${pct(p.actual_return_pct, 2)}</span>`]))
+    ? simpleTable([
+      ["Asset", "The asset whose call was wrong."],
+      ["Week ending", "The Friday on which the predicted week finished."],
+      ["Model said", "The direction the model leaned and its Up and Down probabilities at the time."],
+      ["What happened", "The asset's actual return over that week. Ranked by how large the move against the call was."],
+    ], d.misses.map((p) => [`<strong>${esc(p.symbol)}</strong>`, esc(p.target_week_ending), `${esc(p.predicted_direction)} (Up ${p.p_up}% / Down ${p.p_down}%)`, `<span class="${p.actual_return_pct >= 0 ? "pos" : "neg"}">${pct(p.actual_return_pct, 2)}</span>`]))
     : `<p class="muted">No wrong calls scored yet.</p>`;
 
   const notes = d.notes.map((n) => `<div class="note-item"><div><div class="muted">${new Date(n.created_at).toLocaleString()}</div><div class="note-text">${esc(n.text)}</div></div><button type="button" data-note="${esc(n.id)}" title="Delete note">&times;</button></div>`).join("");

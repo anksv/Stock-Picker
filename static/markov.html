@@ -59,17 +59,17 @@
       <table id="mkTable">
         <thead>
           <tr>
-            <th data-key="symbol">Symbol</th>
-            <th data-key="asset_type">Type</th>
-            <th data-key="sector">Sector</th>
-            <th data-key="current_state">Current State</th>
-            <th data-key="last_week_return_pct">Last Week</th>
-            <th data-key="p_up_next">P(Up) Next Week</th>
-            <th data-key="p_down_next">P(Down)</th>
-            <th data-key="base_up">Usual P(Up)</th>
-            <th data-key="net_edge_pct">Net Edge</th>
-            <th data-key="outlook_label">Outlook</th>
-            <th data-key="sample_size">Sample</th>
+            <th data-key="symbol" title="Ticker symbol of the asset.">Symbol</th>
+            <th data-key="asset_type" title="Stock, ETF (exchange-traded fund) or Crypto.">Type</th>
+            <th data-key="sector" title="Industry group. ETFs that don't belong to one industry use Broad Market, Fixed Income or Commodities; crypto is Cryptocurrency.">Sector</th>
+            <th data-key="current_state" title="The asset's last completed week, bucketed as Down, Flat or Up. Down or Up means the week's move was larger than half a standard deviation of this asset's own weekly moves, so each asset is judged against its own normal range.">Current State</th>
+            <th data-key="last_week_return_pct" title="The asset's return over its last completed week. The week still in progress is excluded.">Last Week</th>
+            <th data-key="p_up_next" title="Based on up to 10 years of history: how often the week after a week like this one was an Up week (a rise of more than half a standard deviation, not merely any gain). Estimated from the asset's Markov transition matrix.">P(Up) Next Week</th>
+            <th data-key="p_down_next" title="How often the week after a week like this one was a Down week (a fall of more than half a standard deviation).">P(Down)</th>
+            <th data-key="base_up" title="How often any week was an Up week for this asset, regardless of what came before. This is the baseline to compare P(Up) Next Week against.">Usual P(Up)</th>
+            <th data-key="net_edge_pct" title="How much better or worse next week's odds look than usual, in percentage points: (P(Up) minus P(Down)) minus the usual (Up minus Down). Positive leans up, negative leans down.">Net Edge</th>
+            <th data-key="outlook_label" title="Favorable or Unfavorable only when the Net Edge is at least 5 points and statistically significant (about 95% confidence). Otherwise No Clear Edge, which is the normal result. Insufficient History means under about 2 years of weekly data.">Outlook</th>
+            <th data-key="sample_size" title="How many past weeks were in the same state as now, which is what the odds are based on. A bigger sample is more reliable; a large edge on a small sample is often luck.">Sample</th>
           </tr>
         </thead>
         <tbody id="mkBody"></tbody>
