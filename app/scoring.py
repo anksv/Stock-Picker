@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
+from app.etf import build_etf_profile
 from app.news import get_news_signal
 
 NEW_LISTING_YEARS_THRESHOLD = 10
@@ -41,6 +42,8 @@ class StockResult:
     sector: str
     continent: str
     asset_type: str
+    currency: str
+    exchange: str | None
     price: float
     change_pct_1d: float
     sma50: float | None
@@ -71,6 +74,7 @@ class StockResult:
     business_quality_score: int
     business_quality_label: str
     is_durable_compounder: bool
+    etf: dict | None
     trailing_pe: float | None
     forward_pe: float | None
     peg_ratio: float | None
@@ -533,6 +537,19 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
     fundamentals = _fundamentals(info)
     listing_age = _listing_age(info)
     business_quality = _business_quality(history, income_stmt)
+    etf = None
+    if asset_type == "ETF":
+        # Per the ETF checklist, past returns and yield are NOT what makes a
+        # good ETF - cost, size, diversification and product risk are. The
+        # price-history fields stay on the result for reference, but the
+        # quality score that feeds the ranking comes from the ETF checks.
+        etf = build_etf_profile(ticker, info, name)
+        business_quality = {
+            **business_quality,
+            "business_quality_score": etf["etf_score"],
+            "business_quality_label": etf["etf_label"],
+            "is_durable_compounder": False,
+        }
     valuation = _valuation(info)
     news = get_news_signal(symbol, name)
     news_score_adjustment = NEWS_SCORE_DELTA.get(news["sentiment_label"], 0)
@@ -573,12 +590,20 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
         news_score_adjustment,
     )
 
+    if etf and etf["risk_type"]:
+        # Leveraged/inverse/volatility products reset daily and decay: never
+        # rank them as a long-term buy no matter how the technicals look.
+        score = min(score, 45)
+        signal = "Short-Term Only"
+
     return StockResult(
         symbol=symbol,
         name=name,
         sector=sector,
         continent=continent,
         asset_type=asset_type,
+        currency=info.get("currency") or "USD",
+        exchange=info.get("exchange"),
         price=price,
         change_pct_1d=change_pct_1d,
         sma50=sma50,
@@ -596,6 +621,7 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
         news_headlines=news["headlines"],
         score=score,
         signal=signal,
+        etf=etf,
         **fundamentals,
         **listing_age,
         **business_quality,

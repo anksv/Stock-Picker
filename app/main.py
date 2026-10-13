@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app import markov_journal
+from app import fx, markov_journal
 from app.markov import compute_markov
 from app.portfolio import buy_portfolio, check_portfolio, delete_portfolio, list_portfolios
 from app.scoring import analyze_ticker
@@ -128,6 +128,16 @@ def get_continents():
     return {"continents": all_continents()}
 
 
+@app.get("/api/fx")
+def get_fx():
+    """USD per 1 EUR, so the UI can switch every displayed value between
+    USD and EUR. 503 (no invented fallback rate) if it's never been fetched."""
+    try:
+        return {"base": "EUR", "quote": "USD", **fx.eurusd()}
+    except fx.FxUnavailable as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
 @app.get("/api/asset-types")
 def get_asset_types():
     return {"asset_types": all_asset_types()}
@@ -140,8 +150,10 @@ def get_screen(
     asset_type: str = Query(default="All"),
     min_price: float = Query(default=0.0, ge=0),
     max_price: float = Query(default=100000.0, gt=0),
+    currency: str | None = Query(default=None, pattern="^(USD|EUR)$", description="Currency the min/max price are expressed in; each asset's price is converted to it before comparing. Omit to compare native prices."),
     require_growth: bool = Query(default=False, description="Only include stocks with positive YoY revenue and earnings growth last quarter"),
     require_stable: bool = Query(default=False, description="Only include stocks that look financially stable (current ratio, debt/equity, profitability)"),
+    eu_etf_only: bool = Query(default=False, description="Keep only ETFs confirmed buyable by EU retail investors (UCITS or EU-listed); drops US-listed ones and ETFs whose status is unknown. Stocks and crypto are unaffected."),
 ):
     cache_key = f"{sector.lower()}|{continent.lower()}|{asset_type.lower()}"
     now = time.time()
@@ -170,11 +182,28 @@ def get_screen(
         results.sort(key=lambda r: r["score"], reverse=True)
         _CACHE[cache_key] = (now, results)
 
-    filtered = [r for r in results if min_price <= r["price"] <= max_price]
+    rate = None
+    if currency:
+        try:
+            rate = fx.eurusd()["rate"]
+        except fx.FxUnavailable:
+            rate = None  # can't convert: fall back to comparing native prices
+
+    def price_in_filter_currency(r: dict) -> float:
+        if rate is None:
+            return r["price"]
+        try:
+            return fx.convert(r["price"], r["currency"], currency, rate)
+        except ValueError:  # an asset in a currency we can't convert
+            return r["price"]
+
+    filtered = [r for r in results if min_price <= price_in_filter_currency(r) <= max_price]
     if require_growth:
         filtered = [r for r in filtered if r["quarterly_growth_positive"]]
     if require_stable:
         filtered = [r for r in filtered if r["financially_stable"]]
+    if eu_etf_only:
+        filtered = [r for r in filtered if r["etf"] is None or r["etf"]["eu_retail_eligible"] is True]
     filtered.sort(key=lambda r: r["score"], reverse=True)
     return {"count": len(filtered), "results": filtered}
 
@@ -267,6 +296,7 @@ class PortfolioBuyRequest(BaseModel):
     amount: float
     tickers: list[TickerWeight]
     force: bool = False
+    currency: str = "USD"
 
 
 @app.get("/api/portfolios")
@@ -280,13 +310,15 @@ def get_portfolio(name: str):
         return check_portfolio(name)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except fx.FxUnavailable as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
 
 @app.post("/api/portfolios")
 def create_portfolio(payload: PortfolioBuyRequest):
     tickers = [t.model_dump() for t in payload.tickers]
     try:
-        return buy_portfolio(payload.name, payload.amount, tickers, force=payload.force)
+        return buy_portfolio(payload.name, payload.amount, tickers, force=payload.force, currency=payload.currency)
     except FileExistsError as e:
         raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:

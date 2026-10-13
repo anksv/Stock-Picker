@@ -5,6 +5,7 @@ const minPriceInput = document.getElementById("minPrice");
 const maxPriceInput = document.getElementById("maxPrice");
 const requireGrowthInput = document.getElementById("requireGrowth");
 const requireStableInput = document.getElementById("requireStable");
+const euEtfOnlyInput = document.getElementById("euEtfOnly");
 const scanBtn = document.getElementById("scanBtn");
 const statusEl = document.getElementById("status");
 const resultsBody = document.getElementById("resultsBody");
@@ -19,6 +20,22 @@ let sortDir = -1;
 
 const MONTH_ORDER = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DESCENDING_BY_DEFAULT = new Set(["price", "score", "change_pct_1d", "week52_position_pct", "rsi14", "business_quality_score", "valuation_score", "vs_sector_return_pct"]);
+
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+const EXCHANGE_NAMES = { GER: "XETRA", STU: "Stuttgart", FRA: "Frankfurt", AMS: "Euronext Amsterdam", PCX: "NYSE Arca", NMS: "NASDAQ", NGM: "NASDAQ", NYQ: "NYSE", CCC: "Crypto market" };
+
+// Each asset's amounts are in its own currency (r.currency); Currency converts
+// them to whatever is selected at the top of the page.
+function money(r, v) {
+  return Currency.format(v, r.currency);
+}
+
+function compactAmount(r, v) {
+  return Currency.compact(v, r.currency);
+}
 
 function signalClass(signal) {
   return signal.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z-]/g, "");
@@ -51,6 +68,7 @@ function nonCompanyNote(assetType) {
 }
 
 function sortValue(row, key) {
+  if (key === "price") return Currency.amount(row.price, row.currency);
   if (key === "best_buy_month") {
     const idx = MONTH_ORDER.indexOf(row[key]);
     return idx === -1 ? MONTH_ORDER.length : idx;
@@ -107,7 +125,7 @@ function renderTable() {
       <td><span class="badge ${assetTypeClass(r.asset_type)}">${r.asset_type}</span></td>
       <td>${r.sector}</td>
       <td>${r.continent}</td>
-      <td>$${r.price.toFixed(2)}</td>
+      <td title="${EXCHANGE_NAMES[r.exchange] ?? r.exchange ?? ""}">${money(r, r.price)}</td>
       <td class="${changeClass}">${r.change_pct_1d.toFixed(2)}%</td>
       <td>${r.rsi14 ?? "-"}</td>
       <td>${r.week52_position_pct}%</td>
@@ -130,6 +148,48 @@ function pct(v) {
   return v === null || v === undefined ? "-" : `${v > 0 ? "+" : ""}${v}%`;
 }
 
+function etfFact(label, value) {
+  return `<p style="margin:4px 0"><strong>${label}:</strong> ${value}</p>`;
+}
+
+function renderEtfChecklist(r) {
+  const e = r.etf;
+  const yn = (v) => (v === true ? "yes" : v === false ? "no" : "unknown");
+  const flags = e.flags.map((f) => `<li class="lesson ${f.kind}">${esc(f.text)}</li>`).join("");
+  const unknown = e.unknown_checks.length
+    ? `<p class="muted"><strong>Not stated by the data source (unknown, not penalized):</strong> ${e.unknown_checks.map(esc).join(", ")}.</p>`
+    : "";
+  const manual = e.manual_checks.map((m) => `<li>${esc(m)}</li>`).join("");
+  const risk = e.risk_type ? `<span class="badge quality-high-risk-product">${esc(e.risk_type)} - short-term only</span>` : "";
+
+  return `
+    <h3 style="margin-bottom: 6px;">ETF Checklist (structure &amp; cost)</h3>
+    <p>
+      <span class="badge ${qualityClass(r.business_quality_label)}">${esc(r.business_quality_label)}</span> ${risk}
+      &nbsp; <strong>ETF score:</strong> ${e.etf_score}/100
+      <span class="muted">(${e.checks_known} of 3 measurable checks available: cost, size, diversification)</span>
+    </p>
+    ${etfFact("Expense ratio (TER)", e.expense_ratio_pct === null ? "unknown" : `${e.expense_ratio_pct}% a year`)}
+    ${etfFact("Fund size", compactAmount(r, e.fund_size))}
+    ${etfFact("Top 10 holdings", e.top10_pct === null ? "unknown" : `${e.top10_pct}% of the fund` + (e.max_holding_pct ? ` (largest single holding ${e.max_holding_pct}%)` : ""))}
+    ${e.max_sector ? etfFact("Largest sector", `${esc(e.max_sector.name)} ${e.max_sector.pct}%`) : ""}
+    ${etfFact("Distribution", e.distribution ? `${e.distribution} <span class="muted">(from ${esc(e.distribution_source)})</span>` : "unknown")}
+    ${etfFact("Domicile", e.domicile ? `${esc(e.domicile)} <span class="muted">(from ${esc(e.domicile_source)})</span>` : "unknown")}
+    ${etfFact("Buyable by EU retail investors", `${yn(e.eu_retail_eligible)} <span class="muted">(${e.ucits ? "UCITS fund" : "not marked UCITS"}; usual brokers only offer UCITS/KID funds)</span>`)}
+    ${etfFact("Currency-hedged", yn(e.currency_hedged))}
+    ${etfFact("Replication", e.replication ? esc(e.replication) : "not stated by the data source")}
+    ${e.management_style ? etfFact("Management", esc(e.management_style)) : ""}
+    ${etfFact("ISIN", e.isin ? esc(e.isin) : "not available - look it up on the provider's site")}
+    ${etfFact("Listed on", `${esc(EXCHANGE_NAMES[r.exchange] ?? r.exchange ?? "?")} in ${esc(r.currency)}`)}
+
+    <ul class="lessons" style="margin-top:10px">${flags}</ul>
+    ${unknown}
+    <p class="muted"><strong>Deliberately not scored</strong>, following the checklist: historical returns (past growth ${r.price_cagr_10y_pct !== null ? `${pct(r.price_cagr_10y_pct)}/yr over ${r.years_of_price_history} years, shown for reference only` : "not available"}), the fund's base currency, and dividend yield (a dividend-trap signal).</p>
+    <p class="muted" style="margin-bottom:2px"><strong>Check these yourself</strong> (not available from the free data source):</p>
+    <ul class="muted" style="margin-top:2px; padding-left:18px">${manual}</ul>
+  `;
+}
+
 function showDetail(r) {
   detailTitle.textContent = r.name && r.name !== r.symbol ? `${r.name} (${r.symbol})` : r.symbol;
   const seasonCells = r.seasonality
@@ -141,7 +201,7 @@ function showDetail(r) {
     .join("");
   detailBody.innerHTML = `
     <p style="color: var(--muted); margin-top: -8px;">${r.asset_type} &middot; ${r.sector} &middot; ${r.continent}</p>
-    <p><strong>Price:</strong> $${r.price.toFixed(2)} (${r.change_pct_1d >= 0 ? "+" : ""}${r.change_pct_1d}% today)</p>
+    <p><strong>Price:</strong> ${money(r, r.price)} (${r.change_pct_1d >= 0 ? "+" : ""}${r.change_pct_1d}% today)</p>
     <p>
       <strong>Signal:</strong> <span class="badge ${signalClass(r.signal)}">${r.signal}</span>
       ${r.is_new_listing ? '<span class="badge new">New</span>' : ""}
@@ -149,10 +209,11 @@ function showDetail(r) {
     </p>
     <p><strong>SMA 50 / 200:</strong> ${r.sma50 ?? "-"} / ${r.sma200 ?? "-"}</p>
     <p><strong>RSI (14d):</strong> ${r.rsi14 ?? "-"}</p>
-    <p><strong>52-week range:</strong> $${r.week52_low} &ndash; $${r.week52_high} (currently at ${r.week52_position_pct}% of range)</p>
+    <p><strong>52-week range:</strong> ${money(r, r.week52_low)} &ndash; ${money(r, r.week52_high)} (currently at ${r.week52_position_pct}% of range)</p>
     <p><strong>Historically cheapest month to buy:</strong> ${r.best_buy_month}</p>
     <p><strong>Listed since:</strong> ${r.listing_date ?? "unknown"}${r.years_listed !== null && r.years_listed !== undefined ? ` (${r.years_listed} years ago)` : ""}</p>
 
+    ${r.etf ? renderEtfChecklist(r) : `
     ${!isCompanyStock(r) ? `
     <p style="color: var(--muted); font-size: 12px;">
       ${nonCompanyNote(r.asset_type)}
@@ -185,6 +246,8 @@ function showDetail(r) {
     <p style="color: var(--muted); font-size: 12px;">
       Based on up to 10 years of price history and the last ~4-5 fiscal years Yahoo Finance reports for free. A high score favors steady compounding, a consistent profit record, strong stable margins, and low reliance on new-product bets - i.e. a loyal customer base buying the same core products, rather than a company still experimenting to find one.
     </p>
+
+`}
 
     <h3 style="margin-bottom: 6px;">Valuation</h3>
     <p>
@@ -292,7 +355,13 @@ sortableHeaders.forEach((th) => {
 
 updateSortIndicators();
 
+let rescanQueued = false;
+
 async function scan() {
+  if (scanBtn.disabled) {
+    rescanQueued = true; // a scan is already running; run again once it finishes
+    return;
+  }
   scanBtn.disabled = true;
   statusEl.textContent = "Scanning market data and news... this can take a couple of minutes on first run.";
   resultsBody.innerHTML = "";
@@ -301,10 +370,12 @@ async function scan() {
       sector: sectorSelect.value,
       continent: continentSelect.value,
       asset_type: assetTypeSelect.value,
+      currency: Currency.display,
       min_price: minPriceInput.value || "0",
       max_price: maxPriceInput.value || "100000",
       require_growth: requireGrowthInput.checked,
       require_stable: requireStableInput.checked,
+      eu_etf_only: euEtfOnlyInput.checked,
     });
     const res = await fetch(`/api/screen?${params}`);
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
@@ -312,18 +383,30 @@ async function scan() {
     lastResults = data.results;
     statusEl.textContent = data.count
       ? `${data.count} stocks match your filters. Click a row for details.`
-      : `0 stocks match your filters. Double-check Min/Max Price - some assets fall outside the default range (e.g. Bitcoin trades around $80k+, well above the default $1000 max).`;
+      : `0 stocks match your filters. Double-check Min/Max Price - some assets fall outside the default range (e.g. Bitcoin trades around 80,000 USD, far above the default max of 1000).`;
     renderTable();
   } catch (err) {
     statusEl.textContent = `Failed to scan: ${err.message}`;
   } finally {
     scanBtn.disabled = false;
+    if (rescanQueued) {
+      rescanQueued = false;
+      scan();
+    }
   }
 }
 
 scanBtn.addEventListener("click", scan);
 
-// Bitcoin trades around $80k+, well above the default $1000 max price - if
+// Switching USD/EUR re-runs the (server-cached) scan so the min/max price
+// filter is applied in the new currency, and closes any open detail panel
+// rather than leaving it showing the old currency.
+Currency.onChange(() => {
+  detailPanel.classList.add("hidden");
+  scan();
+});
+
+// Bitcoin trades around 80,000 USD, far above the default max price of 1000 - if
 // someone switches to "Crypto only" without having touched Max Price,
 // widen it for them so the obvious first scan isn't a silent zero-result trap.
 assetTypeSelect.addEventListener("change", () => {
@@ -332,4 +415,4 @@ assetTypeSelect.addEventListener("change", () => {
   }
 });
 
-Promise.all([loadSectors(), loadContinents(), loadAssetTypes()]).then(scan);
+Promise.all([Currency.ready, loadSectors(), loadContinents(), loadAssetTypes()]).then(scan);

@@ -52,7 +52,7 @@ async function buyPortfolio() {
     const res = await fetch("/api/portfolios", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, amount, tickers }),
+      body: JSON.stringify({ name, amount, tickers, currency: Currency.display }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -62,11 +62,11 @@ async function buyPortfolio() {
           const res2 = await fetch("/api/portfolios", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, amount, tickers, force: true }),
+            body: JSON.stringify({ name, amount, tickers, force: true, currency: Currency.display }),
           });
           const data2 = await res2.json();
           if (!res2.ok) throw new Error(data2.detail || `Server error ${res2.status}`);
-          pfStatusEl.textContent = `Bought "${name}" for $${data2.total_invested.toFixed(2)}.`;
+          pfStatusEl.textContent = `Bought "${name}" for ${money(data2.total_invested, data2.currency)}.`;
           await loadPortfolios();
           return;
         }
@@ -75,7 +75,7 @@ async function buyPortfolio() {
       }
       throw new Error(data.detail || `Server error ${res.status}`);
     }
-    pfStatusEl.textContent = `Bought "${name}" for $${data.total_invested.toFixed(2)}.`;
+    pfStatusEl.textContent = `Bought "${name}" for ${money(data.total_invested, data.currency)}.`;
     if (data.skipped_symbols && data.skipped_symbols.length) {
       pfStatusEl.textContent += ` Couldn't price: ${data.skipped_symbols.join(", ")}.`;
     }
@@ -93,9 +93,14 @@ function pct(v) {
   return v === null || v === undefined ? "-" : `${v > 0 ? "+" : ""}${v}%`;
 }
 
-function money(v) {
-  return `$${v.toFixed(2)}`;
+// Amounts (invested/value/P&L) are in the portfolio's own currency; asset
+// prices are in each asset's own currency. Currency converts both to the
+// currency selected at the top.
+function money(v, currency) {
+  return Currency.format(v, currency);
 }
+
+const expandedPortfolios = new Set();
 
 async function loadPortfolios() {
   portfolioListEl.innerHTML = `<p style="color: var(--muted);">Loading portfolios&hellip;</p>`;
@@ -116,7 +121,7 @@ async function loadPortfolios() {
         <div>
           <strong>${p.name}</strong>
           <span style="color: var(--muted); font-size: 12px;">
-            &middot; ${p.position_count} position(s) &middot; invested ${money(p.total_invested)} &middot; bought ${new Date(p.created_at).toLocaleDateString()}
+            &middot; ${p.position_count} position(s) &middot; invested ${money(p.total_invested, p.currency || "USD")} &middot; bought ${new Date(p.created_at).toLocaleDateString()}
           </span>
         </div>
         <div>
@@ -131,9 +136,11 @@ async function loadPortfolios() {
     card.querySelector(".check-btn").addEventListener("click", async () => {
       if (!body.classList.contains("hidden")) {
         body.classList.add("hidden");
+        expandedPortfolios.delete(p.name);
         return;
       }
       body.classList.remove("hidden");
+      expandedPortfolios.add(p.name);
       body.innerHTML = `<p style="color: var(--muted);">Fetching current prices&hellip;</p>`;
       try {
         const statusRes = await fetch(`/api/portfolios/${encodeURIComponent(p.name)}`);
@@ -152,6 +159,7 @@ async function loadPortfolios() {
     });
 
     portfolioListEl.appendChild(card);
+    if (expandedPortfolios.has(p.name)) card.querySelector(".check-btn").click();
   }
 }
 
@@ -164,10 +172,10 @@ function renderStatus(status) {
         <tr>
           <td class="symbol-cell">${pos.symbol}</td>
           <td>${pos.shares.toFixed(4)}</td>
-          <td>${money(pos.purchase_price)}</td>
-          <td>${money(pos.current_price)}</td>
-          <td>${money(pos.current_value)}</td>
-          <td class="${pos.pl >= 0 ? "pos" : "neg"}">${pos.pl >= 0 ? "+" : ""}${money(pos.pl)}</td>
+          <td>${money(pos.purchase_price, pos.price_currency)}</td>
+          <td>${money(pos.current_price, pos.price_currency)}</td>
+          <td>${money(pos.current_value, status.currency)}</td>
+          <td class="${pos.pl >= 0 ? "pos" : "neg"}">${pos.pl >= 0 ? "+" : ""}${money(pos.pl, status.currency)}</td>
           <td class="${pos.pl_pct >= 0 ? "pos" : "neg"}">${pct(pos.pl_pct)}</td>
         </tr>
       `
@@ -177,8 +185,8 @@ function renderStatus(status) {
   return `
     <p>
       <strong>${verdict}</strong>
-      <span class="${verdictClass}">${status.total_pl >= 0 ? "+" : ""}${money(status.total_pl)} (${pct(status.total_pl_pct)})</span>
-      &nbsp; <span style="color: var(--muted); font-size: 12px;">after ${status.days_held} day(s) &middot; now worth ${money(status.total_current_value)} of ${money(status.total_invested)} invested</span>
+      <span class="${verdictClass}">${status.total_pl >= 0 ? "+" : ""}${money(status.total_pl, status.currency)} (${pct(status.total_pl_pct)})</span>
+      &nbsp; <span style="color: var(--muted); font-size: 12px;">after ${status.days_held} day(s) &middot; now worth ${money(status.total_current_value, status.currency)} of ${money(status.total_invested, status.currency)} invested</span>
     </p>
     <table class="portfolio-positions">
       <thead>
@@ -187,10 +195,11 @@ function renderStatus(status) {
       <tbody>${rows}</tbody>
     </table>
     ${status.unavailable_symbols.length ? `<p style="color: var(--muted); font-size: 12px;">Couldn't fetch a current price for: ${status.unavailable_symbols.join(", ")}</p>` : ""}
-    <p style="color: var(--muted); font-size: 12px;">${status.currency_note}</p>
+    <p style="color: var(--muted); font-size: 12px;">${status.currency_note}${Currency.display !== status.currency ? ` Recorded in ${status.currency} and shown in ${Currency.display} at today's rate; percentages are unaffected.` : ""}</p>
   `;
 }
 
 addTickerRow();
 addTickerRow();
-loadPortfolios();
+Currency.onChange(() => loadPortfolios());
+Currency.ready.then(loadPortfolios);

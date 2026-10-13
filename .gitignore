@@ -11,3 +11,4 @@ data_cache/
 .vscode/
 portfolios/
 portfolio_config.json
+markov_journal/

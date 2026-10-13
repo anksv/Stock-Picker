@@ -13,11 +13,14 @@
       <h1>Portfolio</h1>
       <p class="subtitle">Paper-trade tracker &mdash; simulated purchases only, not a real brokerage</p>
     </div>
-    <nav class="top-nav">
-      <a href="index.html">Screener</a>
-      <a href="portfolio.html" class="active">Portfolio</a>
-      <a href="markov.html">Markov Outlook</a>
-    </nav>
+    <div class="header-controls">
+      <div class="ccy-toggle" id="ccyToggle"></div>
+      <nav class="top-nav">
+        <a href="index.html">Screener</a>
+        <a href="portfolio.html" class="active">Portfolio</a>
+        <a href="markov.html">Markov Outlook</a>
+      </nav>
+    </div>
   </div>
 </header>
 
@@ -28,7 +31,7 @@
       <input id="pfName" type="text" placeholder="e.g. my-portfolio" />
     </div>
     <div class="field">
-      <label for="pfAmount">Amount to invest ($)</label>
+      <label for="pfAmount">Amount to invest (<span class="ccy-symbol">$</span>)</label>
       <input id="pfAmount" type="number" min="0" value="1000" />
     </div>
     <div class="field">
@@ -44,7 +47,7 @@
       <tbody id="tickerRowsBody"></tbody>
     </table>
     <p style="color: var(--muted); font-size: 12px; margin: 8px 0 12px;">
-      Weights are relative, not required to sum to 100 - e.g. 2 and 1 means the first ticker gets 2/3 of the amount. Amount is treated as a plain USD-equivalent number (no currency conversion) since every price here is USD-denominated.
+      Weights are relative, not required to sum to 100 - e.g. 2 and 1 means the first ticker gets 2/3 of the amount. The amount is in the currency selected at the top (USD or EUR) and is saved with the portfolio. Assets priced in the other currency are converted at the live EUR/USD rate, so currency movement counts toward profit/loss. Switching the currency at the top only changes how existing portfolios are displayed.
     </p>
     <button id="buyBtn">Buy Portfolio</button>
   </section>
@@ -54,6 +57,7 @@
   <section id="portfolioList"></section>
 </main>
 
+<script src="common.js"></script>
 <script src="portfolio.js"></script>
 </body>
 </html>

@@ -13,15 +13,20 @@
       <h1>Markov Outlook</h1>
       <p class="subtitle">Next-week odds from each asset's own weekly price history &mdash; a research aid, not a forecast</p>
     </div>
-    <nav class="top-nav">
-      <a href="index.html">Screener</a>
-      <a href="portfolio.html">Portfolio</a>
-      <a href="markov.html" class="active">Markov Outlook</a>
-    </nav>
+    <div class="header-controls">
+      <div class="ccy-toggle" id="ccyToggle"></div>
+      <nav class="top-nav">
+        <a href="index.html">Screener</a>
+        <a href="portfolio.html">Portfolio</a>
+        <a href="markov.html" class="active">Markov Outlook</a>
+      </nav>
+    </div>
   </div>
 </header>
 
 <main>
+  <p class="muted" style="margin: 0 0 12px">This page shows probabilities and percentages only, so the currency switch above doesn't change anything here.</p>
+
   <div class="tabs">
     <button type="button" class="tab active" data-tab="universe">Pre-computed (stocks &amp; ETFs)</button>
     <button type="button" class="tab" data-tab="search">Search any ticker</button>
@@ -118,6 +123,7 @@
   </div>
 </div>
 
+<script src="common.js"></script>
 <script src="markov.js"></script>
 </body>
 </html>

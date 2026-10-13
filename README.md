@@ -37,6 +37,41 @@ carry no guarantee about future performance.
   statements. A crypto asset with under ~7 years of price history (e.g.
   Solana) is labeled "Insufficient History" rather than scored on too
   little data.
+- **ETF checklist** ([`app/etf.py`](app/etf.py); "ETF Checklist" section in the
+  detail panel, ETF labels in the **Quality** column): for ETFs the quality
+  score comes from the structure of the fund, not its past returns, following
+  a European investor's ETF checklist. It scores **cost** (TER), **fund size**
+  (under 100M is flagged as closure risk), **diversification** (top-10
+  holdings weight, single-holding and sector concentration) and
+  **product risk**, plus a small domicile adjustment (Ireland's 15% US
+  dividend withholding vs. Luxembourg's 30%, for equity funds). It also
+  reports accumulating vs. distributing, currency hedging, UCITS/EU
+  availability, domicile, and ISIN. Labels: Top-Tier / Solid / Fair / Weak ETF,
+  **High-Risk Product** for leveraged/inverse/volatility ETFs (which are capped
+  at a score of 45 and signalled **Short-Term Only** - never ranked as a
+  long-term buy), and **Limited Data** when fewer than two of the three
+  measurable checks (TER, size, concentration) are available.
+  - *Deliberately not scored*, per the checklist: historical returns, the
+    fund's base currency, and dividend yield (the "dividend trap" - a
+    yield-focused fund such as ISPA.DE gets an explicit warning instead of a
+    bonus).
+  - *Unknown is unknown*: Yahoo Finance often omits TER, fund size, or
+    domicile (e.g. the Vanguard funds have no TER; most iShares funds have no
+    size). Missing values are listed as unknown, never penalized or guessed.
+    Accumulating/distributing, hedged, swap-based and actively-managed are
+    read from the fund name (reliable when providers label the product) or
+    the dividend history; domicile comes from the ISIN when available, else
+    from an explicit "Ireland"/"Luxembourg" in the fund manager's name.
+  - *Not available for free*, so listed as manual checks instead: tracking
+    error (check the provider's Performance page by ISIN), KID annual cost
+    impact and exit policy, tax registration in your country, replication
+    method when the name doesn't say, and country exposure.
+  - *US-listed ETFs* (SPY, QQQ, ...) usually can't be bought by EU retail
+    investors (no PRIIPs KID). They're flagged, and the **ETFs buyable in the
+    EU only (UCITS)** checkbox hides them (strictly: it keeps only ETFs
+    confirmed UCITS or EU-listed). The universe now includes 18 XETRA-listed
+    UCITS ETFs for this reason - prices there are in EUR, which is why the app
+    has a USD/EUR switch (see "USD / EUR display" below).
 - **Scoring** (0-100, see [`app/scoring.py`](app/scoring.py)): combines
   50/200-day moving average trend, 14-day RSI, position within the 52-week
   range, the two fundamentals checks below, long-term business quality,
@@ -243,6 +278,29 @@ journal needs several weeks before it says anything. The pooled view across
 the universe fills faster, but all assets move with the market in any given
 week, which is why learning waits for multiple distinct weeks.
 
+## USD / EUR display
+
+Every page has a **Show values in USD / EUR** switch at the top right, next to
+the live rate (EUR/USD from Yahoo Finance, cached for an hour; if a refresh
+fails the last rate is reused for up to a day and labelled "stale"; if there
+has never been one the switch says so and values stay in their native
+currency - no rate is ever invented). The choice is remembered across pages
+and reloads.
+
+- **Screener**: prices, 52-week range and ETF fund sizes are converted for
+  display, and the **Min/Max Price** filters are interpreted in the selected
+  currency (each asset's price is converted before comparing - e.g. a
+  EUR 95 fund counts as USD 106.79 against a USD 100 limit). Switching re-runs
+  the scan from the server's cache, and sorting by price orders by the
+  displayed amount, so USD and EUR assets sort together correctly.
+- **Portfolio**: totals, values and profit/loss are converted for display,
+  and the amount you enter for a new portfolio is in the selected currency.
+  Percentages never change with the currency.
+- **Markov Outlook**: shows probabilities and percentages only, so there is
+  nothing to convert; the switch is there for consistency and the page says so.
+- Only USD and EUR convert. A value in any other currency is shown in its own
+  currency and symbol rather than converted wrongly.
+
 ## Customizing the universe
 
 Edit `STOCKS` in [`app/universe.py`](app/universe.py) to add, remove, or
@@ -265,9 +323,13 @@ time afterward to see current profit/loss per ticker and overall.
 **CLI** (same underlying data, useful for scripting or a cron job):
 
 ```bash
-# Buy: split $1000 across tickers listed in a config file
+# Buy: split 1000 (USD by default) across tickers listed in a config file
 python -m app.portfolio buy --name my-portfolio --amount 1000 \
   --config portfolio_config.json
+
+# ...or invest 1000 EUR instead
+python -m app.portfolio buy --name my-eur-portfolio --amount 1000 \
+  --currency EUR --tickers AAPL:1,VWCE.DE:1
 
 # ...or inline, without a config file (SYMBOL:WEIGHT,...)
 python -m app.portfolio buy --name my-portfolio --amount 1000 \
@@ -285,12 +347,16 @@ Copy [`portfolio_config.example.json`](portfolio_config.example.json) to
 the ticker/weight list. Weights are relative, not percentages that must sum
 to 100.
 
-**On amounts and currency**: whatever number you pass as `--amount` (or
-enter in the web form) is treated as a plain USD-equivalent number, not
-converted from EUR or any other currency - every price in this app is
-USD-denominated. If you're thinking in EUR, convert to USD yourself first
-if you want the simulation to reflect a real amount; this was a deliberate
-simplification (no live FX conversion), not an oversight.
+**On amounts and currency**: each portfolio has a currency (USD or EUR) - the
+one its amount was entered in (`--currency`, or whichever currency is
+selected at the top of the page when you click Buy). Assets priced in the
+other currency are converted at the live EUR/USD rate when buying (so a
+EUR 500 slice of a US stock becomes the right number of shares) and again when
+checking, so currency movement counts toward profit/loss exactly as it
+would for a real investor holding foreign assets. Assets priced in any other
+currency are skipped rather than mis-converted. Portfolios saved before
+currencies existed have no currency field and are read as USD, which is what
+they were.
 
 Portfolio records are saved as JSON files under `portfolios/` (gitignored -
 these are your personal paper-trade records, not project data) and persist

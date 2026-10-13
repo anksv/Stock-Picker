@@ -1,6 +1,8 @@
 """Curated ticker universe, each tagged with a GICS-style sector, the
 continent of the company's primary listing/headquarters, and an asset type
-(Stock, ETF, or Crypto).
+(Stock, ETF, or Crypto). ETFs include both US-listed funds and
+EUR-priced UCITS funds listed on XETRA, so prices are in each asset's own
+currency.
 
 This is a static seed list of well-known, liquid stocks, ETFs, and
 cryptocurrencies used as the screening universe. Non-US names are mostly
@@ -192,6 +194,30 @@ STOCKS: list[Stock] = [
     Stock("GLD", "Commodities", "North America", "ETF"),
     Stock("SLV", "Commodities", "North America", "ETF"),
     Stock("USO", "Commodities", "North America", "ETF"),
+
+    # --- ETFs listed on XETRA (EUR-priced UCITS funds; continent = listing venue) ---
+    Stock("EUNL.DE", "Broad Market", "Europe", "ETF"),   # iShares Core MSCI World (Acc)
+    Stock("VWCE.DE", "Broad Market", "Europe", "ETF"),   # Vanguard FTSE All-World (Acc)
+    Stock("IUSQ.DE", "Broad Market", "Europe", "ETF"),   # iShares MSCI ACWI (Acc)
+    Stock("XDWD.DE", "Broad Market", "Europe", "ETF"),   # Xtrackers MSCI World (1C)
+    Stock("SXR8.DE", "Broad Market", "Europe", "ETF"),   # iShares Core S&P 500 (Acc)
+    Stock("VUSA.DE", "Broad Market", "Europe", "ETF"),   # Vanguard S&P 500 (Dist)
+    Stock("SXRV.DE", "Broad Market", "Europe", "ETF"),   # iShares NASDAQ 100 (Acc)
+    Stock("EXS1.DE", "Broad Market", "Europe", "ETF"),   # iShares Core DAX (concentrated index)
+    Stock("LYP6.DE", "Broad Market", "Europe", "ETF"),   # Amundi Core STOXX Europe 600 (Luxembourg)
+    Stock("XMME.DE", "Broad Market", "Europe", "ETF"),   # Xtrackers MSCI Emerging Markets
+    Stock("IS3N.DE", "Broad Market", "Europe", "ETF"),   # iShares Core MSCI EM IMI (Acc)
+    Stock("ISPA.DE", "Broad Market", "Europe", "ETF"),   # iShares STOXX Global Select Dividend 100 (yield-focused)
+    Stock("QDVE.DE", "Technology", "Europe", "ETF"),     # iShares S&P 500 IT Sector
+    Stock("VVSM.DE", "Technology", "Europe", "ETF"),     # VanEck Semiconductor (theme)
+    Stock("DFEN.DE", "Industrials", "Europe", "ETF"),    # VanEck Defense (theme)
+    Stock("EUNA.DE", "Fixed Income", "Europe", "ETF"),   # iShares Global Aggregate Bond, EUR Hedged
+    Stock("EUNH.DE", "Fixed Income", "Europe", "ETF"),   # iShares Core EUR Govt Bond (Dist)
+    Stock("4GLD.DE", "Commodities", "Europe", "ETF"),    # Xetra-Gold (an ETC backed by physical gold)
+
+    # --- Leveraged / inverse ETFs (US): here to exercise the product-risk flag ---
+    Stock("TQQQ", "Broad Market", "North America", "ETF"),
+    Stock("SQQQ", "Broad Market", "North America", "ETF"),
 
     # --- Crypto (trades 24/7, no single listing venue/continent) ---
     Stock("BTC-USD", "Cryptocurrency", "Global", "Crypto"),

@@ -13,11 +13,14 @@
       <h1>Stock Picker</h1>
       <p class="subtitle">Personal research screener &mdash; not financial advice</p>
     </div>
-    <nav class="top-nav">
-      <a href="index.html" class="active">Screener</a>
-      <a href="portfolio.html">Portfolio</a>
-      <a href="markov.html">Markov Outlook</a>
-    </nav>
+    <div class="header-controls">
+      <div class="ccy-toggle" id="ccyToggle"></div>
+      <nav class="top-nav">
+        <a href="index.html" class="active">Screener</a>
+        <a href="portfolio.html">Portfolio</a>
+        <a href="markov.html">Markov Outlook</a>
+      </nav>
+    </div>
   </div>
 </header>
 
@@ -42,11 +45,11 @@
       </select>
     </div>
     <div class="field">
-      <label for="minPrice">Min Price ($)</label>
+      <label for="minPrice" title="In the currency selected at the top; each asset's price is converted before comparing">Min Price (<span class="ccy-symbol">$</span>)</label>
       <input id="minPrice" type="number" min="0" value="0" />
     </div>
     <div class="field">
-      <label for="maxPrice">Max Price ($)</label>
+      <label for="maxPrice" title="In the currency selected at the top; each asset's price is converted before comparing">Max Price (<span class="ccy-symbol">$</span>)</label>
       <input id="maxPrice" type="number" min="0" value="1000" />
     </div>
     <div class="field checkbox-field">
@@ -54,6 +57,9 @@
     </div>
     <div class="field checkbox-field">
       <label><input id="requireStable" type="checkbox" /> Financially stable (low bankruptcy risk)</label>
+    </div>
+    <div class="field checkbox-field">
+      <label title="Hides US-domiciled ETFs, which EU retail investors usually can't buy (no PRIIPs KID). Stocks and crypto are not affected."><input id="euEtfOnly" type="checkbox" /> ETFs buyable in the EU only (UCITS)</label>
     </div>
     <button id="scanBtn">Scan</button>
   </section>
@@ -74,7 +80,7 @@
           <th data-key="week52_position_pct">52w Range %</th>
           <th data-key="score">Score</th>
           <th data-key="signal">Signal</th>
-          <th data-key="business_quality_score">Business Quality</th>
+          <th data-key="business_quality_score" title="Stocks/crypto: long-term business quality. ETFs: cost, size, diversification and product-risk checklist.">Quality</th>
           <th data-key="valuation_score">Valuation</th>
           <th data-key="vs_sector_return_pct">vs Sector (3m)</th>
           <th data-key="best_buy_month">Best Month</th>
@@ -93,6 +99,7 @@
   </div>
 </div>
 
+<script src="common.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

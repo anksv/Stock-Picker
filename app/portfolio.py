@@ -7,14 +7,16 @@ by recording today's price and fractional share count per ticker, then
 compares that to a later real price. It's a personal research aid, not
 financial advice.
 
-Amounts are treated as plain USD-equivalent numbers, not converted from any
-other currency, since every price in this app is USD-denominated (see
-README). If you're thinking in EUR or another currency, convert the amount
-yourself before passing it in.
+A portfolio has a currency (USD or EUR) - the one its amount is entered in.
+Assets priced in a different currency (e.g. a EUR-priced XETRA ETF in a USD
+portfolio) are converted at the live EUR/USD rate, both when buying and when
+checking, so currency movement counts toward profit/loss just as it would for
+a real investor. Records saved before this had no currency and are read as
+USD, which is what they were.
 
 Usable as a library (by app/main.py's API) or as a CLI:
     python -m app.portfolio buy --name my-portfolio --amount 1000 \\
-        --config portfolio_config.json
+        --currency EUR --config portfolio_config.json
     python -m app.portfolio status --name my-portfolio
     python -m app.portfolio list
 """
@@ -29,14 +31,19 @@ from pathlib import Path
 
 import yfinance as yf
 
+from app import fx
 from app.storage import atomic_write_json
 
 PORTFOLIOS_DIR = Path(__file__).resolve().parent.parent / "portfolios"
 
-CURRENCY_NOTE = (
-    "Amount is treated as a plain USD-equivalent number, not converted from "
-    "EUR or any other currency - every price in this app is USD-denominated."
-)
+CURRENCY_SYMBOLS = {"USD": "$", "EUR": "\u20ac"}
+
+def _currency_note(currency: str, converted: bool) -> str:
+    note = f"Amounts are in {currency}."
+    if converted:
+        note += (" Assets priced in another currency are converted at the live EUR/USD rate, "
+                 "so currency movement since purchase counts toward profit/loss.")
+    return note
 
 
 @dataclass
@@ -47,9 +54,10 @@ class Position:
     allocated_amount: float
     purchase_price: float
     shares: float
+    price_currency: str = "USD"
 
 
-def _fetch_price_and_name(symbol: str) -> tuple[float, str] | None:
+def _fetch_price_and_name(symbol: str) -> tuple[float, str, str] | None:
     """Lightweight current-price lookup - deliberately not the full
     analyze_ticker pipeline (10y history, income statement, news), since a
     portfolio buy/check only needs today's price.
@@ -65,7 +73,7 @@ def _fetch_price_and_name(symbol: str) -> tuple[float, str] | None:
         except Exception:
             info = {}
         name = info.get("longName") or info.get("shortName") or symbol
-        return price, name
+        return price, name, (info.get("currency") or "USD").upper()
     except Exception:
         return None
 
@@ -85,13 +93,16 @@ def _portfolio_path(name: str) -> Path:
     return PORTFOLIOS_DIR / f"{safe_name}.json"
 
 
-def buy_portfolio(name: str, amount: float, tickers: list[dict], force: bool = False) -> dict:
-    """Records a simulated purchase: splits `amount` across `tickers`
-    (each {"symbol", "weight"}) proportional to weight, at each ticker's
-    current price, and saves it. Raises ValueError on bad input, and
+def buy_portfolio(name: str, amount: float, tickers: list[dict], force: bool = False, currency: str = "USD") -> dict:
+    """Records a simulated purchase: splits `amount` (in `currency`) across
+    `tickers` (each {"symbol", "weight"}) proportional to weight, at each
+    ticker's current price, and saves it. Raises ValueError on bad input, and
     FileExistsError if a portfolio with this name already exists (unless
     force=True, which overwrites it).
     """
+    currency = currency.upper()
+    if currency not in fx.SUPPORTED:
+        raise ValueError(f"Currency must be one of {', '.join(fx.SUPPORTED)}")
     if amount <= 0:
         raise ValueError("Amount must be positive")
     if not tickers:
@@ -103,34 +114,48 @@ def buy_portfolio(name: str, amount: float, tickers: list[dict], force: bool = F
 
     normalized = _normalize_weights(tickers)
 
-    positions: list[Position] = []
+    priced = []
     skipped: list[str] = []
     for entry in normalized:
-        symbol = entry["symbol"]
-        result = _fetch_price_and_name(symbol)
-        if result is None:
-            skipped.append(symbol)
+        result = _fetch_price_and_name(entry["symbol"])
+        # An asset priced in a currency we can't convert would silently
+        # corrupt the share count, so it's skipped rather than guessed.
+        if result is None or result[2] not in fx.SUPPORTED:
+            skipped.append(entry["symbol"])
             continue
-        price, ticker_name = result
+        priced.append((entry, *result))
+
+    if not priced:
+        raise ValueError(f"Couldn't fetch a usable price for any of: {', '.join(e['symbol'] for e in normalized)}")
+
+    rate = None
+    converted = any(price_ccy != currency for _, _, _, price_ccy in priced)
+    if converted:
+        try:
+            rate = fx.eurusd()["rate"]
+        except fx.FxUnavailable as exc:
+            raise ValueError("EUR/USD exchange rate unavailable right now - try again shortly") from exc
+
+    positions: list[Position] = []
+    for entry, price, ticker_name, price_ccy in priced:
         allocated_amount = round(amount * entry["weight_pct"] / 100, 2)
-        shares = allocated_amount / price
+        allocated_native = fx.convert(allocated_amount, currency, price_ccy, rate)
         positions.append(Position(
-            symbol=symbol,
+            symbol=entry["symbol"],
             name=ticker_name,
             weight_pct=entry["weight_pct"],
             allocated_amount=allocated_amount,
             purchase_price=price,
-            shares=shares,
+            shares=allocated_native / price,
+            price_currency=price_ccy,
         ))
-
-    if not positions:
-        raise ValueError(f"Couldn't fetch a price for any of: {', '.join(e['symbol'] for e in normalized)}")
 
     record = {
         "name": name,
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "currency": currency,
         "total_invested": round(sum(p.allocated_amount for p in positions), 2),
-        "currency_note": CURRENCY_NOTE,
+        "fx_eurusd_at_purchase": rate,
         "positions": [asdict(p) for p in positions],
         "skipped_symbols": skipped,
     }
@@ -159,6 +184,7 @@ def list_portfolios() -> list[dict]:
             "name": record["name"],
             "created_at": record["created_at"],
             "total_invested": record["total_invested"],
+            "currency": record.get("currency", "USD"),
             "position_count": len(record["positions"]),
         })
     return summaries
@@ -174,15 +200,20 @@ def delete_portfolio(name: str) -> bool:
 
 def check_portfolio(name: str) -> dict:
     """Fetches current prices for every position and computes profit/loss
-    against the recorded purchase. Raises FileNotFoundError if no
-    portfolio with this name has been bought yet.
+    against the recorded purchase, in the portfolio's own currency. Raises
+    FileNotFoundError if no portfolio with this name has been bought yet, and
+    fx.FxUnavailable if a conversion is needed but no EUR/USD rate exists.
     """
     record = load_portfolio(name)
     if record is None:
         raise FileNotFoundError(f"No portfolio named '{name}' - buy one first")
 
+    currency = record.get("currency", "USD")  # records saved before currencies existed were USD
     created_at = datetime.fromisoformat(record["created_at"])
     days_held = (datetime.now(timezone.utc) - created_at).days
+
+    needs_fx = any(pos.get("price_currency", "USD") != currency for pos in record["positions"])
+    rate = fx.eurusd()["rate"] if needs_fx else None
 
     positions = []
     total_current_value = 0.0
@@ -192,13 +223,15 @@ def check_portfolio(name: str) -> dict:
         if result is None:
             unavailable.append(pos["symbol"])
             continue
-        current_price, _ = result
-        current_value = round(pos["shares"] * current_price, 2)
+        current_price = result[0]
+        price_ccy = pos.get("price_currency", "USD")
+        current_value = round(fx.convert(pos["shares"] * current_price, price_ccy, currency, rate), 2)
         pl = round(current_value - pos["allocated_amount"], 2)
         pl_pct = round(pl / pos["allocated_amount"] * 100, 2) if pos["allocated_amount"] else 0.0
         total_current_value += current_value
         positions.append({
             **pos,
+            "price_currency": price_ccy,
             "current_price": current_price,
             "current_value": current_value,
             "pl": pl,
@@ -213,6 +246,7 @@ def check_portfolio(name: str) -> dict:
     return {
         "name": record["name"],
         "created_at": record["created_at"],
+        "currency": currency,
         "days_held": days_held,
         "total_invested": total_invested,
         "total_current_value": total_current_value,
@@ -221,25 +255,34 @@ def check_portfolio(name: str) -> dict:
         "in_profit": total_pl >= 0,
         "positions": positions,
         "unavailable_symbols": unavailable,
-        "currency_note": record.get("currency_note", CURRENCY_NOTE),
+        "currency_note": _currency_note(currency, needs_fx),
     }
 
 
+def _sym(code: str) -> str:
+    return CURRENCY_SYMBOLS.get(code, f"{code} ")
+
+
+def _money(value: float, symbol: str) -> str:
+    return f"{'-' if value < 0 else ''}{symbol}{abs(value):.2f}"
+
+
 def _print_status_report(status: dict) -> None:
+    ccy = _sym(status["currency"])
     verdict = "PROFIT" if status["in_profit"] else "LOSS"
     sign = "+" if status["total_pl"] >= 0 else ""
-    print(f"\nPortfolio: {status['name']}  (bought {status['days_held']} day(s) ago)")
-    print(f"Invested:      ${status['total_invested']:.2f}")
-    print(f"Current value: ${status['total_current_value']:.2f}")
-    print(f"Result:        {verdict}  {sign}${status['total_pl']:.2f}  ({sign}{status['total_pl_pct']:.2f}%)")
-    print(f"\n{'Symbol':<8}{'Shares':>10}{'Buy $':>10}{'Now $':>10}{'Value $':>10}{'P/L $':>12}{'P/L %':>10}")
+    print(f"\nPortfolio: {status['name']}  (bought {status['days_held']} day(s) ago, amounts in {status['currency']})")
+    print(f"Invested:      {_money(status['total_invested'], ccy)}")
+    print(f"Current value: {_money(status['total_current_value'], ccy)}")
+    print(f"Result:        {verdict}  {sign}{_money(status['total_pl'], ccy)}  ({sign}{status['total_pl_pct']:.2f}%)")
+    print(f"\n{'Symbol':<9}{'Shares':>10}{'Buy':>11}{'Now':>11}{'Priced in':>11}{'Value':>11}{'P/L':>12}{'P/L %':>10}")
     for p in status["positions"]:
         sign_p = "+" if p["pl"] >= 0 else ""
         pl_str = f"{sign_p}{p['pl']:.2f}"
         pl_pct_str = f"{sign_p}{p['pl_pct']:.2f}%"
         print(
-            f"{p['symbol']:<8}{p['shares']:>10.4f}{p['purchase_price']:>10.2f}"
-            f"{p['current_price']:>10.2f}{p['current_value']:>10.2f}"
+            f"{p['symbol']:<9}{p['shares']:>10.4f}{p['purchase_price']:>11.2f}"
+            f"{p['current_price']:>11.2f}{p['price_currency']:>11}{p['current_value']:>11.2f}"
             f"{pl_str:>12}{pl_pct_str:>10}"
         )
     if status["unavailable_symbols"]:
@@ -267,7 +310,8 @@ def main() -> None:
 
     buy_parser = subparsers.add_parser("buy", help="Simulate buying a basket of tickers with a fixed amount")
     buy_parser.add_argument("--name", required=True, help="Portfolio name, used to check on it later")
-    buy_parser.add_argument("--amount", required=True, type=float, help="Total amount to invest (USD-equivalent)")
+    buy_parser.add_argument("--amount", required=True, type=float, help="Total amount to invest, in --currency")
+    buy_parser.add_argument("--currency", default="USD", choices=list(fx.SUPPORTED), help="Currency the amount is in (default USD)")
     buy_parser.add_argument("--config", help="Path to a JSON file with {\"tickers\": [{\"symbol\":..,\"weight\":..}]}")
     buy_parser.add_argument("--tickers", help="Inline alternative to --config, e.g. AAPL:40,MSFT:30,SPY:30")
     buy_parser.add_argument("--force", action="store_true", help="Overwrite an existing portfolio with this name")
@@ -282,16 +326,17 @@ def main() -> None:
     if args.command == "buy":
         tickers = _load_tickers_arg(args)
         try:
-            record = buy_portfolio(args.name, args.amount, tickers, force=args.force)
+            record = buy_portfolio(args.name, args.amount, tickers, force=args.force, currency=args.currency)
         except FileExistsError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
-        print(f"Bought portfolio '{record['name']}' for ${record['total_invested']:.2f}:")
+        ccy = _sym(record["currency"])
+        print(f"Bought portfolio '{record['name']}' for {ccy}{record['total_invested']:.2f}:")
         for p in record["positions"]:
-            print(f"  {p['symbol']:<8} {p['weight_pct']:>6.2f}%  ${p['allocated_amount']:>9.2f}  @ ${p['purchase_price']:.2f}  -> {p['shares']:.4f} shares")
+            print(f"  {p['symbol']:<9} {p['weight_pct']:>6.2f}%  {ccy}{p['allocated_amount']:>9.2f}  @ {p['purchase_price']:.2f} {p['price_currency']}  -> {p['shares']:.4f} shares")
         if record["skipped_symbols"]:
             print(f"Skipped (no price found): {', '.join(record['skipped_symbols'])}")
         print(f"\nRun `python -m app.portfolio status --name {record['name']}` later to check profit/loss.")
@@ -299,7 +344,7 @@ def main() -> None:
     elif args.command == "status":
         try:
             status = check_portfolio(args.name)
-        except FileNotFoundError as e:
+        except (FileNotFoundError, fx.FxUnavailable) as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
         _print_status_report(status)
@@ -310,7 +355,7 @@ def main() -> None:
             print("No portfolios yet. Create one with `python -m app.portfolio buy ...`.")
             return
         for p in portfolios:
-            print(f"{p['name']:<20} invested ${p['total_invested']:.2f}  ({p['position_count']} positions)  created {p['created_at']}")
+            print(f"{p['name']:<20} invested {_sym(p['currency'])}{p['total_invested']:.2f}  ({p['position_count']} positions)  created {p['created_at']}")
 
 
 if __name__ == "__main__":
