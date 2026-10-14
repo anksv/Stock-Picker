@@ -19,7 +19,7 @@ let sortKey = "score";
 let sortDir = -1;
 
 const MONTH_ORDER = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const DESCENDING_BY_DEFAULT = new Set(["price", "score", "week52_position_pct", "rsi14", "business_quality_score", "valuation_score"]);
+const DESCENDING_BY_DEFAULT = new Set(["price", "score", "week52_position_pct", "rsi14", "business_quality_score", "valuation_score", "verdict_rank"]);
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -127,14 +127,15 @@ function renderTable() {
       <td title="${EXCHANGE_NAMES[r.exchange] ?? r.exchange ?? ""}">${money(r, r.price)}</td>
       <td>${r.rsi14 ?? "-"}</td>
       <td>${r.week52_position_pct}%</td>
+      <td><span class="badge ${qualityClass(r.business_quality_label)}" title="${r.business_quality_label} (${r.business_quality_score}/100)">${r.business_quality_label}</span></td>
+      <td><span class="badge ${valuationClass(r.valuation_label)}" title="${r.valuation_label} (${r.valuation_score}/100)">${r.valuation_label}</span></td>
       <td>${r.score.toFixed(1)}</td>
       <td>
         <span class="badge ${signalClass(r.signal)}">${r.signal}</span>
         ${horizonBadge(r)}
         ${r.is_new_listing ? '<span class="badge new" title="Listed on the market less than 10 years ago">New</span>' : ""}
       </td>
-      <td><span class="badge ${qualityClass(r.business_quality_label)}" title="${r.business_quality_label} (${r.business_quality_score}/100)">${r.business_quality_label}</span></td>
-      <td><span class="badge ${valuationClass(r.valuation_label)}" title="${r.valuation_label} (${r.valuation_score}/100)">${r.valuation_label}</span></td>
+      <td>${verdictCell(r)}</td>
       <td>${r.best_buy_month}</td>
     `;
     tr.addEventListener("click", () => showDetail(r));
@@ -193,6 +194,32 @@ const HORIZON_TIPS = {
   "Short-term": "Leans on momentum rather than a durable, reasonably priced asset (or is crypto, which has no earnings to anchor a long-term case), so watch it closely and expect to exit sooner. Click the row for what to watch.",
 };
 
+// Only serious conflicts get a marker in the table; the milder notes are in the
+// detail panel so the column stays readable.
+function verdictCell(r) {
+  const warns = r.flags.filter((f) => f.level === "warn");
+  const marker = warns.length
+    ? ` <span class="flag-marker warn" title="${esc(warns.map((f) => f.text).join("\n"))}">\u26A0 ${warns.length}</span>`
+    : "";
+  return `<span class="badge verdict-${r.verdict_tone}">${esc(r.verdict)}</span>${marker}`;
+}
+
+// How the Quality, Valuation, Signal and trend columns of this row fit together.
+function renderVerdict(r) {
+  const flags = r.flags.map((f) => `<li class="lesson ${f.level === "warn" ? "warn" : "info"}">${esc(f.text)}</li>`).join("");
+  return `
+    <h3 style="margin-bottom: 6px;">How the columns fit together</h3>
+    <p style="margin: 4px 0">
+      <strong>Verdict:</strong> <span class="badge verdict-${r.verdict_tone}">${esc(r.verdict)}</span>
+      <span class="muted">Quality ${esc(r.business_quality_label)} (${r.business_quality_score}) &times; Valuation ${esc(r.valuation_label)}</span>
+    </p>
+    ${r.flags.length
+      ? `<ul class="lessons" style="margin: 6px 0 8px">${flags}</ul>`
+      : '<p class="muted" style="margin: 4px 0 8px">No conflicts: Signal, Quality, Valuation and trend point the same way.</p>'}
+    <p class="muted">The Verdict reads only business quality against price and ignores short-term timing; the Signal covers timing. Flags mark where they disagree. A rule-based prompt, not advice.</p>
+  `;
+}
+
 function horizonBadge(r) {
   if (!r.horizon) return "";
   const cls = r.horizon === "Long-term" ? "horizon-long" : "horizon-short";
@@ -248,6 +275,7 @@ function showDetail(r) {
       ${r.is_new_listing ? '<span class="badge new">New</span>' : ""}
       &nbsp; <strong>Score:</strong> ${r.score.toFixed(1)}/100
     </p>
+    ${renderVerdict(r)}
     ${renderHorizon(r)}
     <p><strong>SMA 50 / 200:</strong> ${r.sma50 ?? "-"} / ${r.sma200 ?? "-"}</p>
     <p><strong>RSI (14d):</strong> ${r.rsi14 ?? "-"}</p>

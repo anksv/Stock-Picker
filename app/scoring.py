@@ -92,6 +92,10 @@ class StockResult:
     signal: str
     horizon: str | None
     horizon_reasons: list
+    verdict: str
+    verdict_tone: str
+    verdict_rank: int
+    flags: list
 
     def to_dict(self):
         return asdict(self)
@@ -595,6 +599,137 @@ def _horizon(signal: str, asset_type: str, business_quality: dict, valuation: di
     return {"horizon": "Long-term", "horizon_reasons": reasons}
 
 
+# Quality x Valuation read: "is this a good business, and is the price fair?".
+# Deliberately ignores short-term timing (RSI, trend) - that is the Signal's
+# job - so the two can be read side by side. tone drives the badge colour;
+# rank is only used to sort the column (higher = more attractive).
+VERDICT_RANKS = {"good": 5, "fair": 4, "wait": 3, "caution": 2, "bad": 1, "neutral": 0}
+
+# (quality tier, valuation tier) -> (verdict, tone). Valuation tiers: cheap =
+# Undervalued, fair = Reasonably Valued, full = Fully Valued, rich = Overvalued,
+# none = No Valuation Data.
+_VERDICT_MATRIX = {
+    ("strong", "cheap"): ("Core buy: great business, cheap", "good"),
+    ("strong", "fair"): ("Great business, fair price", "good"),
+    ("strong", "full"): ("Great business, wait for a dip", "wait"),
+    ("strong", "rich"): ("Great business, too expensive", "wait"),
+    ("strong", "none"): ("Great business, price unchecked", "fair"),
+    ("steady", "cheap"): ("Solid business, cheap", "good"),
+    ("steady", "fair"): ("Solid business, fair price", "fair"),
+    ("steady", "full"): ("Solid business, not cheap", "neutral"),
+    ("steady", "rich"): ("Solid business, expensive", "caution"),
+    ("steady", "none"): ("Solid business, price unchecked", "fair"),
+    ("mixed", "cheap"): ("Cheap, but business is mixed", "caution"),
+    ("mixed", "fair"): ("Average business, fair price", "neutral"),
+    ("mixed", "full"): ("Average business, not cheap", "neutral"),
+    ("mixed", "rich"): ("Average and expensive", "bad"),
+    ("mixed", "none"): ("Average business, price unchecked", "neutral"),
+    ("weak", "cheap"): ("Possible value trap", "caution"),
+    ("weak", "fair"): ("Weak business", "bad"),
+    ("weak", "full"): ("Weak business", "bad"),
+    ("weak", "rich"): ("Weak and expensive", "bad"),
+    ("weak", "none"): ("Weak business", "bad"),
+}
+
+
+# A buy slightly under its 200-day average is common; this far under it the
+# long-term trend is clearly down and worth a warning.
+BELOW_SMA200_WARN_PCT = 5
+
+
+def _quality_tier(score: int) -> str:
+    if score >= 75:
+        return "strong"
+    if score >= 60:
+        return "steady"
+    if score >= 40:
+        return "mixed"
+    return "weak"
+
+
+_VALUATION_TIERS = {
+    "Undervalued": "cheap",
+    "Reasonably Valued": "fair",
+    "Fully Valued": "full",
+    "Overvalued": "rich",
+}
+
+
+def _verdict(
+    signal: str,
+    asset_type: str,
+    price: float,
+    sma200: float | None,
+    rsi14: float | None,
+    week52_position_pct: float,
+    news_label: str,
+    business_quality: dict,
+    valuation: dict,
+    risky_etf: bool,
+) -> dict:
+    """Relate the Quality, Valuation, Signal and trend columns of one row.
+
+    verdict: the Quality x Valuation read (see _VERDICT_MATRIX).
+    flags: places where the columns disagree and the row deserves a second
+    look - each {"level": "warn" | "info", "text": ...}.
+    """
+    quality_score = business_quality["business_quality_score"]
+    quality_label = business_quality["business_quality_label"]
+    valuation_label = valuation["valuation_label"]
+
+    judged = False  # True only when Quality and Valuation were actually weighed
+    if risky_etf:
+        verdict, tone = "Trading product, not an investment", "bad"
+    elif asset_type == "Crypto":
+        verdict, tone = "No fundamentals: price momentum only", "neutral"
+    elif quality_label in ("Insufficient History", "Limited Data"):
+        verdict, tone = "Too little data to judge", "neutral"
+    else:
+        judged = True
+        verdict, tone = _VERDICT_MATRIX[(
+            _quality_tier(quality_score), _VALUATION_TIERS.get(valuation_label, "none"),
+        )]
+
+    buying = signal in ("Strong Buy", "Buy")
+    flags = []
+
+    def flag(level: str, text: str):
+        flags.append({"level": level, "text": text})
+
+    if buying and valuation_label == "Overvalued":
+        flag("warn", "Buy signal, but the price looks expensive (Overvalued) - the buy rests on momentum.")
+    elif buying and valuation_label == "Fully Valued":
+        flag("info", "Buy signal, but the price is Fully Valued - not cheap, so a pullback would be a better entry.")
+    if buying and judged and quality_score < 40:
+        flag("warn", f"Buy signal despite weak business quality ({quality_label}, {quality_score}/100).")
+    if buying and sma200 is not None and price < sma200 * (1 - BELOW_SMA200_WARN_PCT / 100):
+        flag("warn", f"Buy signal while the price is {round((1 - price / sma200) * 100, 1)}% below its 200-day average - the long-term trend is still down.")
+    if buying and rsi14 is not None and rsi14 >= 65 and week52_position_pct >= 85:
+        flag("warn", f"Chasing risk: RSI {rsi14} and {week52_position_pct}% of the 52-week range - strong momentum, but near the top.")
+    if buying and news_label == "Negative":
+        flag("info", "Buy signal, but the recent headline tone is Negative.")
+    if (
+        signal == "Overbought - Wait"
+        and judged
+        and tone in ("good", "fair")
+    ):
+        flag("info", "The business and price look fine - only timing (RSI above 70) is holding this back. Consider waiting for a pullback.")
+    if (
+        signal in ("Hold", "Avoid")
+        and judged
+        and quality_score >= 75
+        and valuation_label == "Undervalued"
+    ):
+        flag("info", "Strong business at a cheap price, but the trend and momentum are weak - check why before dismissing it.")
+
+    return {
+        "verdict": verdict,
+        "verdict_tone": tone,
+        "verdict_rank": VERDICT_RANKS[tone],
+        "flags": flags,
+    }
+
+
 def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "Stock") -> StockResult | None:
     ticker = yf.Ticker(symbol)
     try:
@@ -679,6 +814,11 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
         signal = "Short-Term Only"
 
     horizon = _horizon(signal, asset_type, business_quality, valuation)
+    verdict = _verdict(
+        signal, asset_type, price, sma200, rsi14, week52_position_pct,
+        news["sentiment_label"], business_quality, valuation,
+        bool(etf and etf["risk_type"]),
+    )
 
     return StockResult(
         symbol=symbol,
@@ -707,6 +847,7 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
         signal=signal,
         etf=etf,
         **horizon,
+        **verdict,
         **fundamentals,
         **listing_age,
         **business_quality,

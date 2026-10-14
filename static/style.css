@@ -614,3 +614,13 @@ section.hidden { display: none; }
 .badge.horizon { margin-left: 4px; white-space: nowrap; }
 .badge.horizon-long { background: rgba(45,212,191,0.16); color: #2dd4bf; }
 .badge.horizon-short { background: rgba(192,132,252,0.16); color: #c084fc; }
+
+/* ---- Verdict column: Quality x Valuation read, plus conflict markers ---- */
+.badge.verdict-good { background: rgba(52,199,89,0.18); color: var(--green); }
+.badge.verdict-fair { background: rgba(79,140,255,0.18); color: var(--accent); }
+.badge.verdict-wait { background: rgba(245,197,66,0.15); color: var(--yellow); }
+.badge.verdict-caution { background: rgba(255,159,64,0.16); color: #ff9f40; }
+.badge.verdict-bad { background: rgba(255,92,92,0.15); color: var(--red); }
+.badge.verdict-neutral { background: rgba(154,161,172,0.15); color: var(--muted); }
+.flag-marker { font-size: 12px; font-weight: 600; white-space: nowrap; cursor: help; }
+.flag-marker.warn { color: var(--yellow); }

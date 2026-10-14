@@ -99,6 +99,21 @@ carry no guarantee about future performance.
   Signal threshold (70 / 55 / 40) behaves exactly as before; above 70 the
   curve flattens gradually toward 100 and below 40 toward 0, never reaching
   either, so order is always preserved. The Score is shown to one decimal.
+- **Verdict and conflict flags** ("Verdict" column / "How the columns fit
+  together" in the detail panel): relates the Quality and Valuation columns
+  of each row. Quality is bucketed (75+ strong, 60+ steady, 40+ mixed, below
+  weak) and crossed with the Valuation label, giving a plain-English read
+  such as *Core buy: great business, cheap*, *Great business, wait for a
+  dip*, or *Possible value trap* (cheap but weak). It deliberately ignores
+  short-term timing, which is the Signal's job, and it does not change the
+  Score or Signal. Crypto, assets with too little history and leveraged/
+  inverse ETFs get a neutral or "not an investment" read instead. **Flags**
+  mark where columns disagree, for example a Buy on an Overvalued stock, a
+  Buy more than 5% below its 200-day average, RSI 65+ near the top of the
+  52-week range, an Overbought - Wait on an otherwise good business, or a
+  strong, cheap business with a Hold/Avoid. The table shows a &#9888; only for
+  the serious ones; the milder notes are in the detail panel. The column
+  sorts from most to least attractive.
 - **Valuation** ("Valuation" column / detail panel section): "is the
   current price a good deal", independent of how good the business itself
   is (that's what Business Quality answers). Built from three free Yahoo
