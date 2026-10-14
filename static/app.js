@@ -127,7 +127,7 @@ function renderTable() {
       <td title="${EXCHANGE_NAMES[r.exchange] ?? r.exchange ?? ""}">${money(r, r.price)}</td>
       <td>${r.rsi14 ?? "-"}</td>
       <td>${r.week52_position_pct}%</td>
-      <td>${r.score}</td>
+      <td>${r.score.toFixed(1)}</td>
       <td>
         <span class="badge ${signalClass(r.signal)}">${r.signal}</span>
         ${horizonBadge(r)}
@@ -246,7 +246,7 @@ function showDetail(r) {
       <strong>Signal:</strong> <span class="badge ${signalClass(r.signal)}">${r.signal}</span>
       ${horizonBadge(r)}
       ${r.is_new_listing ? '<span class="badge new">New</span>' : ""}
-      &nbsp; <strong>Score:</strong> ${r.score}/100
+      &nbsp; <strong>Score:</strong> ${r.score.toFixed(1)}/100
     </p>
     ${renderHorizon(r)}
     <p><strong>SMA 50 / 200:</strong> ${r.sma50 ?? "-"} / ${r.sma200 ?? "-"}</p>
@@ -359,7 +359,7 @@ function renderNews(r) {
       <strong>Headline tally:</strong>
       <span class="badge ${newsSentimentClass(r.news_sentiment_label)}">${r.news_sentiment_label}</span>
       &nbsp; <strong>Score impact:</strong>
-      <span class="${r.news_score_adjustment > 0 ? "pos" : r.news_score_adjustment < 0 ? "neg" : ""}">${r.news_score_adjustment > 0 ? "+" : ""}${r.news_score_adjustment} points</span>
+      <span class="${r.news_score_adjustment > 0 ? "pos" : r.news_score_adjustment < 0 ? "neg" : ""}">${r.news_score_adjustment > 0 ? "+" : ""}${r.news_score_adjustment} raw points</span>
     </p>
     <ul class="news-list">${items}</ul>
     <p style="color: var(--muted); font-size: 12px;">

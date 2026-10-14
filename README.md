@@ -91,6 +91,14 @@ carry no guarantee about future performance.
   (&plusmn;6, &plusmn;2 for "Mixed") — see the news bullet for why it's
   kept deliberately small and scoped to the score only, not Business
   Quality or Financial Stability.
+  Those point values (&plusmn;20, &plusmn;15, &plusmn;6, and the trend/RSI
+  points) add up to a *raw* total that can exceed 100 or go below 0. It is
+  then passed through a smooth soft clamp (`_rescale` in `app/scoring.py`)
+  instead of being hard-cut at 0/100, which used to leave many strong assets
+  tied at exactly 100. Raw totals from 40 to 70 are unchanged, so every
+  Signal threshold (70 / 55 / 40) behaves exactly as before; above 70 the
+  curve flattens gradually toward 100 and below 40 toward 0, never reaching
+  either, so order is always preserved. The Score is shown to one decimal.
 - **Valuation** ("Valuation" column / detail panel section): "is the
   current price a good deal", independent of how good the business itself
   is (that's what Business Quality answers). Built from three free Yahoo

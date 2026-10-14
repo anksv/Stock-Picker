@@ -7,6 +7,7 @@ NOT financial advice and makes no guarantee of future performance.
 from __future__ import annotations
 
 import calendar
+import math
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 
@@ -87,7 +88,7 @@ class StockResult:
     news_sentiment_score: int
     news_score_adjustment: int
     news_headlines: list
-    score: int
+    score: float
     signal: str
     horizon: str | None
     horizon_reasons: list
@@ -134,6 +135,29 @@ def _seasonality(history: pd.DataFrame) -> tuple[str, list]:
     return MONTH_NAMES[best_month_num], seasonality
 
 
+# The composite adds up points from many factors, and a strong asset can collect
+# well over 100 of them (or a weak one well under 0). Chopping at 0/100 made
+# every strong asset tie at exactly 100, so the score stopped ranking the best
+# ones. Instead the total is mapped to 0-100 with a smooth "soft clamp":
+#   - between the two knees it is left exactly as is, so the Signal cut-offs
+#     (70 Strong Buy, 55 Buy, 40 Hold) and their wording are unchanged;
+#   - above the top knee it is compressed toward 100, below the bottom knee
+#     toward 0, so order and spread are kept instead of being flattened.
+# The scales equal the room left to 100 / 0, which makes the curve's slope 1
+# at each knee (no visible kink) and keeps it strictly increasing.
+SCORE_TOP_KNEE = 70
+SCORE_BOTTOM_KNEE = 40
+
+
+def _rescale(raw: float) -> float:
+    if raw > SCORE_TOP_KNEE:
+        room = 100 - SCORE_TOP_KNEE
+        return SCORE_TOP_KNEE + room * (1 - math.exp(-(raw - SCORE_TOP_KNEE) / room))
+    if raw < SCORE_BOTTOM_KNEE:
+        return SCORE_BOTTOM_KNEE * math.exp((raw - SCORE_BOTTOM_KNEE) / SCORE_BOTTOM_KNEE)
+    return float(raw)
+
+
 def _score_and_signal(
     price: float,
     sma50,
@@ -146,45 +170,45 @@ def _score_and_signal(
     valuation_score: int,
     news_score_adjustment: int,
 ) -> tuple[int, str]:
-    score = 50
+    raw = 50
 
     if sma50 is not None and sma200 is not None:
         if sma50 > sma200:
-            score += 15
+            raw += 15
         else:
-            score -= 15
+            raw -= 15
         if price > sma50:
-            score += 10
+            raw += 10
         else:
-            score -= 5
+            raw -= 5
         if price > sma200:
-            score += 10
+            raw += 10
         else:
-            score -= 5
+            raw -= 5
 
     if rsi is not None:
         if rsi < 30:
-            score += 10
+            raw += 10
         elif rsi > 70:
-            score -= 20
+            raw -= 20
         elif rsi < 50:
-            score += 5
+            raw += 5
 
     if pos_pct < 30:
-        score += 10
+        raw += 10
     elif pos_pct > 90:
-        score -= 10
+        raw -= 10
 
     if quarterly_growth_positive:
-        score += 5
+        raw += 5
     if financially_stable:
-        score += 5
+        raw += 5
 
     # Long-term business quality (10y price compounding, profitability track
     # record, margin/customer-loyalty proxy, low product-experimentation
     # spend) is weighted as heavily as the short-term technicals above: up to
     # +/-20 points.
-    score += round((business_quality_score - 50) * 0.4)
+    raw += round((business_quality_score - 50) * 0.4)
 
     # Valuation (P/E, PEG, analyst consensus) - is the current price a good
     # deal, independent of how good the business itself is. Weighted less
@@ -192,14 +216,14 @@ def _score_and_signal(
     # context-dependent signal (e.g. a high P/E can be justified by high
     # growth - PEG partly corrects for that, but not perfectly): up to
     # +/-15 points.
-    score += round((valuation_score - 50) * 0.3)
+    raw += round((valuation_score - 50) * 0.3)
 
     # Recent news sentiment - a short-term factor like RSI, not a long-term
     # quality signal, and intentionally capped small (see NEWS_SCORE_DELTA)
     # since it comes from a plain keyword count, not real sentiment analysis.
-    score += news_score_adjustment
+    raw += news_score_adjustment
 
-    score = int(max(0, min(100, score)))
+    score = _rescale(raw)
 
     if rsi is not None and rsi > 70:
         signal = "Overbought - Wait"
@@ -212,7 +236,7 @@ def _score_and_signal(
     else:
         signal = "Avoid"
 
-    return score, signal
+    return round(score, 1), signal
 
 
 def _fundamentals(info: dict) -> dict:
