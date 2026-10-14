@@ -121,7 +121,7 @@ function renderTable() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="symbol-cell" title="${r.name}">${r.symbol}</td>
-      <td><span class="badge ${assetTypeClass(r.asset_type)}">${r.asset_type}</span></td>
+      <td><span class="badge ${assetTypeClass(r.asset_type)}">${r.asset_type}</span>${etfTags(r)}</td>
       <td>${r.sector}</td>
       <td>${r.continent}</td>
       <td title="${EXCHANGE_NAMES[r.exchange] ?? r.exchange ?? ""}">${money(r, r.price)}</td>
@@ -168,6 +168,8 @@ function renderEtfChecklist(r) {
       &nbsp; <strong>ETF score:</strong> ${e.etf_score}/100
       <span class="muted">(${e.checks_known} of 3 measurable checks available: cost, size, diversification)</span>
     </p>
+    ${etfFact("Fund type", `${esc(r.etf.etf_type)} <span class="muted">&middot; ${esc(r.etf.theme)}</span>`)}
+    ${r.etf.justetf_url ? etfFact("Look it up", `<a href="${esc(r.etf.justetf_url)}" target="_blank" rel="noopener noreferrer">Open on justETF</a> <span class="muted">(tracking difference, country exposure, replication - see the checks below)</span>`) : ""}
     ${etfFact("Expense ratio (TER)", e.expense_ratio_pct === null ? "unknown" : `${e.expense_ratio_pct}% a year`)}
     ${etfFact("Fund size", compactAmount(r, e.fund_size))}
     ${etfFact("Top 10 holdings", e.top10_pct === null ? "unknown" : `${e.top10_pct}% of the fund` + (e.max_holding_pct ? ` (largest single holding ${e.max_holding_pct}%)` : ""))}
@@ -196,6 +198,33 @@ const HORIZON_TIPS = {
 
 // Only serious conflicts get a marker in the table; the milder notes are in the
 // detail panel so the column stays readable.
+const ETF_TYPE_TIPS = {
+  "Index fund": "Tracks an index. Assumed when the fund name doesn't say it is actively managed, leveraged or a commodity product - confirm in the KID.",
+  "Actively managed": "A manager picks the holdings (named 'active' in the fund name): may outperform an index, but usually costs more.",
+  "Leveraged": "Multiplies daily moves and resets every day: risky, not for long-term holding.",
+  "Inverse": "Bets against the market and resets daily: at most a short-term trade.",
+  "Volatility": "Tracks market volatility and decays by design: short-term trading only.",
+  "Commodity product": "Holds a commodity such as gold, not companies (a 'product exchange' fund).",
+  "Crypto product": "Holds a coin such as Bitcoin, not companies (a 'product exchange' fund).",
+};
+const ETF_THEME_TIPS = {
+  "Broad market": "Spread across a whole market, such as MSCI World or the S&P 500.",
+  "Sector / theme": "Focused on one sector or theme, such as defense or semiconductors: less diversified.",
+  "Bond": "Holds bonds rather than shares.",
+  "Commodity / crypto": "Holds a commodity or coin directly.",
+};
+const ETF_TYPE_RISKY = new Set(["Leveraged", "Inverse", "Volatility"]);
+
+// Two small tags under the ETF badge: what kind of fund it is, and how broad.
+function etfTags(r) {
+  if (!r.etf) return "";
+  const risky = ETF_TYPE_RISKY.has(r.etf.etf_type) ? " risky" : "";
+  return `<div class="etf-tags">
+    <span class="etf-tag${risky}" title="${esc(ETF_TYPE_TIPS[r.etf.etf_type] || "")}">${esc(r.etf.etf_type)}</span>
+    <span class="etf-tag" title="${esc(ETF_THEME_TIPS[r.etf.theme] || "")}">${esc(r.etf.theme)}</span>
+  </div>`;
+}
+
 function verdictCell(r) {
   const warns = r.flags.filter((f) => f.level === "warn");
   const marker = warns.length

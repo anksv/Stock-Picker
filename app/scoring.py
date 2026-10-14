@@ -760,7 +760,7 @@ def analyze_ticker(symbol: str, sector: str, continent: str, asset_type: str = "
         # good ETF - cost, size, diversification and product risk are. The
         # price-history fields stay on the result for reference, but the
         # quality score that feeds the ranking comes from the ETF checks.
-        etf = build_etf_profile(ticker, info, name)
+        etf = build_etf_profile(ticker, info, name, sector, symbol)
         business_quality = {
             **business_quality,
             "business_quality_score": etf["etf_score"],

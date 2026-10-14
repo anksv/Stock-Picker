@@ -99,6 +99,22 @@ carry no guarantee about future performance.
   Signal threshold (70 / 55 / 40) behaves exactly as before; above 70 the
   curve flattens gradually toward 100 and below 40 toward 0, never reaching
   either, so order is always preserved. The Score is shown to one decimal.
+- **ETF type, theme and justETF link** (tags under the Type badge; "Fund type"
+  and "Look it up" in the ETF Checklist): each ETF is tagged **Index fund /
+  Actively managed / Leveraged / Inverse / Volatility / Commodity product /
+  Crypto product** and **Broad market / Sector / theme / Bond / Commodity /
+  crypto**, following the checklist's ETF-type and sector-and-theme notes.
+  The type comes from the fund's category and name ("Index fund" is assumed
+  when nothing says otherwise, which the tooltip states); the theme comes
+  from the screener's own sector label. Commodity and crypto products hold
+  the asset itself, so the holdings-diversification check is skipped for
+  them instead of being listed as unknown. For funds that are EU-tradable and
+  have an ISIN, the detail panel links to that fund's justETF profile,
+  where tracking difference, country exposure and replication can be checked
+  by hand. The link is a plain link you click: nothing is fetched from
+  justETF automatically, in line with its terms against automated
+  retrieval. US-domiciled funds get no link because justETF doesn't cover
+  them.
 - **Verdict and conflict flags** ("Verdict" column / "How the columns fit
   together" in the detail panel): relates the Quality and Valuation columns
   of each row. Quality is bucketed (75+ strong, 60+ steady, 40+ mixed, below

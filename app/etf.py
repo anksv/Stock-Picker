@@ -27,6 +27,18 @@ US_EXCHANGES = {"PCX", "NMS", "NGM", "NCM", "NYQ", "ASE", "BTS", "NYS"}
 EU_EXCHANGES = {"GER", "STU", "FRA", "AMS", "PAR", "MIL", "VIE", "EBS", "MCE", "BRU"}
 EU_DOMICILES = {"Ireland", "Luxembourg", "Germany", "France", "Netherlands", "Italy", "Spain", "Austria", "Belgium", "Finland", "Sweden"}
 
+# Yahoo returns no ISIN for the XETRA-listed funds, so the universe's XETRA
+# ETFs carry theirs here. Each was checked against the fund's justETF profile
+# (name and ISIN match) - they are the identifiers the profile link is built from.
+XETRA_ISINS = {
+    "EUNL.DE": "IE00B4L5Y983", "VWCE.DE": "IE00BK5BQT80", "IUSQ.DE": "IE00B6R52259",
+    "XDWD.DE": "IE00BJ0KDQ92", "SXR8.DE": "IE00B5BMR087", "VUSA.DE": "IE00B3XXRP09",
+    "SXRV.DE": "IE00B53SZB19", "EXS1.DE": "DE0005933931", "LYP6.DE": "LU0908500753",
+    "XMME.DE": "IE00BTJRMP35", "IS3N.DE": "IE00BKM4GZ66", "ISPA.DE": "DE000A0F5UH1",
+    "QDVE.DE": "IE00B3WJKG14", "VVSM.DE": "IE00BMC38736", "DFEN.DE": "IE000YYE6WK5",
+    "EUNA.DE": "IE00BDBRDM35", "EUNH.DE": "IE00B4WXJJ64", "4GLD.DE": "DE000A0S9GB0",
+}
+
 ISIN_DOMICILE = {
     "IE": "Ireland", "LU": "Luxembourg", "US": "United States", "DE": "Germany", "FR": "France", "GB": "United Kingdom",
     "JE": "Jersey", "CH": "Switzerland", "NL": "Netherlands", "AT": "Austria", "IT": "Italy", "ES": "Spain",
@@ -49,6 +61,12 @@ _DISTRIBUTING = re.compile(r"\bdist\b|\bdistributing\b|\bdistribution\b|\(dist\)
 _HEDGED = re.compile(r"\bhedged\b|\bhdg\b|\bchf hedged\b|\beur hedged\b", re.I)
 _SWAP = re.compile(r"\bswap\b|\bsynthetic\b", re.I)
 _ACTIVE = re.compile(r"\bactive(?:ly)?\b", re.I)
+# Only unambiguous wording: "gold"/"oil" alone also appear in miners and
+# energy-company funds, which hold companies, not the commodity.
+_COMMODITY = re.compile(r"\b(?:physical|bullion|etc)\b", re.I)
+_CRYPTO = re.compile(r"\b(?:bitcoin|ethereum|crypto\w*)\b", re.I)
+
+JUSTETF_PROFILE_URL = "https://www.justetf.com/en/etf-profile.html?isin={isin}"
 
 
 def classify_risk_type(name: str, category: str | None) -> str | None:
@@ -67,6 +85,39 @@ def classify_risk_type(name: str, category: str | None) -> str | None:
     if _LEVERAGED.search(name):
         return "Leveraged"
     return None
+
+
+def classify_type(name: str, category: str | None, sector: str | None, risk_type: str | None) -> str:
+    """The checklist's ETF types: Index fund, Actively managed, Leveraged,
+    Inverse, and the "product exchange" funds that hold gold/bitcoin and the
+    like instead of companies. Volatility products are kept separate.
+
+    "Index fund" is the default when nothing says otherwise - it is what the
+    large majority of ETFs are, but it is an inference from the absence of an
+    "active" marker in the name, not something the data source states.
+    """
+    if risk_type:
+        return risk_type
+    if sector == "Commodities" or _COMMODITY.search(name) or (category or "").lower().startswith("commodit"):
+        return "Commodity product"
+    if _CRYPTO.search(name):
+        return "Crypto product"
+    if _ACTIVE.search(name):
+        return "Actively managed"
+    return "Index fund"
+
+
+def classify_theme(sector: str | None, etf_type: str) -> str:
+    """Broad market vs a narrower sector/theme, from the screener's own sector
+    labels (broad funds are filed under Broad Market, bond and commodity funds
+    under their own pseudo-sectors)."""
+    if etf_type in ("Commodity product", "Crypto product"):
+        return "Commodity / crypto"
+    if sector == "Fixed Income":
+        return "Bond"
+    if sector in (None, "Broad Market"):
+        return "Broad market"
+    return "Sector / theme"
 
 
 def _domicile(isin: str | None, family: str, name: str) -> tuple[str | None, str | None]:
@@ -123,7 +174,7 @@ def _fetch_holdings(ticker) -> dict:
     return out
 
 
-def build_etf_profile(ticker, info: dict, name: str) -> dict:
+def build_etf_profile(ticker, info: dict, name: str, sector: str | None = None, symbol: str | None = None) -> dict:
     category = info.get("category")
     family = info.get("fundFamily") or ""
     exchange = info.get("exchange")
@@ -141,6 +192,8 @@ def build_etf_profile(ticker, info: dict, name: str) -> dict:
         isin = raw if raw and raw != "-" else None
     except Exception:
         pass
+    if isin is None:
+        isin = XETRA_ISINS.get(symbol)
     try:
         dividends = ticker.dividends
     except Exception:
@@ -156,8 +209,17 @@ def build_etf_profile(ticker, info: dict, name: str) -> dict:
     else:
         eu_eligible = None
 
+    risk_type = classify_risk_type(name, category)
+    etf_type = classify_type(name, category, sector, risk_type)
+    # justETF only lists European-tradable funds, so a US-domiciled fund's
+    # profile would be a dead link; no ISIN means no guessing a link either.
+    justetf_url = JUSTETF_PROFILE_URL.format(isin=isin) if isin and eu_eligible and domicile != "United States" else None
+
     profile = {
-        "risk_type": classify_risk_type(name, category),
+        "risk_type": risk_type,
+        "etf_type": etf_type,
+        "theme": classify_theme(sector, etf_type),
+        "justetf_url": justetf_url,
         "category": category,
         "expense_ratio_pct": ter,
         "fund_size": size,
@@ -218,7 +280,9 @@ def _score(p: dict) -> dict:
         score += 10; add("good", f"Large fund: about {size / 1e9:.1f}B in assets - closure risk is remote.")
 
     top10 = p["top10_pct"]
-    if top10 is None:
+    if top10 is None and p["etf_type"] in ("Commodity product", "Crypto product"):
+        add("info", "Product exchange fund: it holds the commodity or coin itself rather than companies, so a holdings-diversification check doesn't apply.")
+    elif top10 is None:
         unknown.append("holdings concentration")
     else:
         if top10 <= 30:
